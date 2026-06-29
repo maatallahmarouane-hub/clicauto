@@ -884,7 +884,6 @@
     window.FIREBASE_DATA.products = prods;
     window.FIREBASE_DATA.vehicles = vehs;
     if(typeof window._reloadProducts==='function') window._reloadProducts();
-    if(typeof window._pickerFill==='function')     window._pickerFill();
     var el=document.createElement('div');
     el.style.cssText='position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:'+(prods.length?'#22c55e':'#f59e0b')+';color:#fff;padding:8px 18px;border-radius:20px;font-size:13px;font-weight:600;z-index:9999;pointer-events:none';
     el.textContent=prods.length?('☁️ '+prods.length+' produits chargés'):'⚠️ Firestore vide';
