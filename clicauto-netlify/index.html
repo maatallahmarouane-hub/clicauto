@@ -820,9 +820,11 @@
 <!-- Chargement Firestore via REST API (zéro SDK, zéro dépendance) -->
 <script>
 (function() {
-  var PROJECT = 'cliccarrosserie-9f29d';
-  var API_KEY = 'AIzaSyBirUSp9Kv7oBZ4m79H3YFNaUWydaPP-CQ';
-  var BASE    = 'https://firestore.googleapis.com/v1/projects/' + PROJECT + '/databases/(default)/documents';
+  var PROJECT  = 'cliccarrosserie-9f29d';
+  var API_KEY  = 'AIzaSyBirUSp9Kv7oBZ4m79H3YFNaUWydaPP-CQ';
+  var EMAIL    = 'lecteur@clicauto.ma';
+  var PASSWORD = 'Medmarouane1234@';
+  var BASE     = 'https://firestore.googleapis.com/v1/projects/' + PROJECT + '/databases/(default)/documents';
 
   window.FIREBASE_DATA = window.FIREBASE_DATA || { products:[], vehicles:[] };
 
@@ -894,13 +896,16 @@
 
   /* ── Auth anonyme REST → obtenir un token Firebase ── */
   function getToken() {
-    return fetch('https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=' + API_KEY, {
+    return fetch('https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=' + API_KEY, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ returnSecureToken: true })
+      body: JSON.stringify({ email: EMAIL, password: PASSWORD, returnSecureToken: true })
     })
     .then(function(r) { return r.json(); })
-    .then(function(d) { return d.idToken || null; });
+    .then(function(d) {
+      if (d.error) throw new Error(d.error.message);
+      return d.idToken;
+    });
   }
 
   /* ── Lecture collection avec token ── */
