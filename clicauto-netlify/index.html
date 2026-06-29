@@ -1,0 +1,913 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0">
+  <meta name="theme-color" content="#FFFFFF">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <title>ClicAuto.ma — Pièces de carrosserie au Maroc</title>
+  <meta name="description" content="ClicAuto.ma : pièces de carrosserie d'occasion au Maroc. Pare-chocs, ailes, portes, feux, optiques, capots. Livraison partout au Maroc. Recherche par marque, modèle et année.">
+  <meta name="keywords" content="pièces carrosserie Maroc, pare-chocs occasion, aile voiture, porte voiture, feux arrière, optiques, capot occasion, clicauto">
+  <link rel="canonical" id="canonical-link" href="https://clicauto.ma/">
+  <meta property="og:type" content="website">
+  <meta property="og:locale" content="fr_MA">
+  <meta property="og:site_name" content="ClicAuto.ma">
+  <meta property="og:title" id="og-title" content="ClicAuto.ma — Pièces de carrosserie au Maroc">
+  <meta property="og:description" id="og-desc" content="Pièces de carrosserie d'occasion pour votre voiture. Pare-chocs, ailes, feux, optiques, portes, capots. Livraison au Maroc.">
+  <meta property="og:url" id="og-url" content="https://clicauto.ma/">
+  <meta property="og:image" id="og-image" content="https://clicauto.ma/assets/og-image.jpg">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="ClicAuto.ma — Pièces de carrosserie au Maroc">
+  <meta name="twitter:description" content="Pièces de carrosserie d'occasion pour votre voiture. Livraison au Maroc.">
+  <meta name="twitter:image" content="https://clicauto.ma/assets/og-image.jpg">
+  <meta name="robots" content="index, follow">
+  <script id="seo-jsonld" type="application/ld+json">{
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "WebSite",
+        "@id": "https://clicauto.ma/#website",
+        "url": "https://clicauto.ma/",
+        "name": "ClicAuto.ma",
+        "description": "Pièces de carrosserie d'occasion au Maroc",
+        "potentialAction": {
+          "@type": "SearchAction",
+          "target": "https://clicauto.ma/?q={search_term_string}",
+          "query-input": "required name=search_term_string"
+        }
+      },
+      {
+        "@type": "LocalBusiness",
+        "@id": "https://clicauto.ma/#business",
+        "name": "ClicAuto.ma",
+        "description": "Pièces de carrosserie d'occasion pour voitures au Maroc — pare-chocs, ailes, feux, optiques, portes, capots.",
+        "url": "https://clicauto.ma/",
+        "telephone": "+212661520695",
+        "priceRange": "DH",
+        "currenciesAccepted": "MAD",
+        "paymentAccepted": "Cash",
+        "areaServed": {"@type": "Country", "name": "Maroc"},
+        "sameAs": ["https://wa.me/212661520695"]
+      }
+    ]
+  }</script>
+  <link rel="icon" href="assets/logo.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="assets/logo.svg">
+  <link rel="stylesheet" href="css/style.css?v=34">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+<svg style="position:absolute;width:0;height:0;overflow:hidden" aria-hidden="true">
+  <defs>
+    <filter id="rough-marker" x="-10%" y="-25%" width="120%" height="160%" color-interpolation-filters="sRGB">
+      <feTurbulence type="fractalNoise" baseFrequency="0.06 0.09" numOctaves="2" seed="4" result="n"/>
+      <feDisplacementMap in="SourceGraphic" in2="n" scale="3.5" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+  </defs>
+</svg>
+<div id="app">
+
+<!-- ══════════════════════════════════════
+     PAGE 1 — VEHICLE SELECTOR
+     ══════════════════════════════════════ -->
+<div class="page" id="pg-vehicle">
+
+  <!-- ── HEADER : logo + tagline centré en haut ── -->
+  <header class="vh-header">
+    <a class="logo" href="#" onclick="return false;">
+      <img src="assets/logo.svg" alt="">
+      <span class="logo-name">clicauto<span>.ma</span></span>
+    </a>
+    <p class="vh-tagline">Pièces de carrosserie · Livraison au Maroc</p>
+  </header>
+
+  <!-- ── PICKER : centré dans l'espace disponible ── -->
+  <div class="vh-picker-zone">
+    <div class="col-labels">
+      <span>Marque</span>
+      <span>Modèle</span>
+      <span>Année</span>
+    </div>
+    <div class="picker-outer">
+      <div class="picker-sel-band"></div>
+      <div class="picker-fade-t"></div>
+      <div class="picker-fade-b"></div>
+      <div class="pcol" id="c-brand"><div class="pcol-inner"></div></div>
+      <div class="col-div"></div>
+      <div class="pcol" id="c-model"><div class="pcol-inner"></div></div>
+      <div class="col-div"></div>
+      <div class="pcol" id="c-year"><div class="pcol-inner"></div></div>
+    </div>
+  </div>
+
+  <!-- ── RECHERCHE : ancrée en bas ── -->
+  <div class="vh-bottom-search">
+    <div class="search-wrap">
+      <button class="btn-search" id="btn-search" onclick="handleSearch()">
+        <svg class="btn-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        <span class="btn-label">Rechercher par véhicule</span>
+        <div class="spinner"></div>
+      </button>
+    </div>
+    <div class="home-search-divider"><span>Chercher directement ou scanner votre carte grise</span></div>
+    <div class="msearch-wrap" style="padding-top:0;position:relative;">
+      <div class="msearch-row">
+        <div class="msearch-box">
+          <svg class="msearch-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          <input id="home-search-input" class="msearch-input" type="text"
+                 placeholder="ex: Pare-chocs Renault Clio 2015"
+                 autocomplete="off" autocorrect="off" spellcheck="false">
+          <button id="home-search-clear" class="msearch-clear" style="display:none" aria-label="Effacer">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+        <button class="scan-btn" onclick="startScan()" title="Scanner carte grise ou pièce" aria-label="Scanner">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+            <circle cx="12" cy="13" r="4"/>
+          </svg>
+        </button>
+      </div>
+      <div id="home-suggestions" class="search-suggestions" style="display:none"></div>
+    </div>
+
+  <!-- Contact ancré en bas -->
+  <div class="vh-contact-cta">
+    <a href="#" class="vh-contact-btn" onclick="goPage('pg-contact');return false;">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      Contacter notre équipe
+    </a>
+    <span class="vh-contact-sep">·</span>
+    <a href="https://wa.me/212661520695" target="_blank" class="vh-contact-btn vh-contact-wa">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413z"/></svg>
+      WhatsApp
+    </a>
+  </div>
+  </div><!-- /.vh-bottom-search -->
+
+</div><!-- /#pg-vehicle -->
+
+
+<!-- ══════════════════════════════════════
+     PAGE 2 — PRODUCTS
+     ══════════════════════════════════════ -->
+<div class="page state-right" id="pg-products">
+
+  <!-- Zone scrollable : tout sauf la nav du bas -->
+  <div class="prod-scroll">
+
+    <!-- Sticky header -->
+    <header class="prod-head" id="prod-head">
+      <button class="icon-btn" onclick="goBack('pg-vehicle')" aria-label="Retour">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+      </button>
+      <!-- Photo du véhicule sélectionné -->
+      <div class="prod-veh-thumb" id="prod-veh-thumb"></div>
+      <button class="icon-btn cart-btn" aria-label="Panier" onclick="openCart()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+        <span class="cart-count" id="cart-count"></span>
+      </button>
+    </header>
+
+    <p class="veh-label" id="veh-label"></p>
+
+    <!-- Barre de recherche manuelle -->
+    <div class="msearch-wrap" style="position:relative;">
+      <div class="msearch-box">
+        <svg class="msearch-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        <input id="manual-search-input" class="msearch-input" type="text"
+               placeholder="Marque, modèle, année… ex: Renault Clio 2015"
+               autocomplete="off" autocorrect="off" spellcheck="false">
+        <button id="manual-search-clear" class="msearch-clear" style="display:none" aria-label="Effacer">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div id="prod-suggestions" class="search-suggestions" style="display:none"></div>
+    </div>
+
+    <!-- Carousel catégories -->
+    <div class="cat-wrap">
+      <div class="cat-rail" id="cat-rail"></div>
+      <div class="scroll-dots" id="scroll-dots"></div>
+    </div>
+
+    <!-- Grille produits -->
+    <section class="prod-section">
+      <p class="result-count" id="result-count"></p>
+      <div class="prod-grid" id="prod-grid"></div>
+    </section>
+
+  </div><!-- /.prod-scroll -->
+
+  <!-- Barre de navigation — HORS du scroll, toujours visible -->
+  <nav class="bottom-nav">
+    <div class="nav-item nav-logo-home" onclick="goBack('pg-vehicle')">
+      <div class="nav-logo-platform">
+        <img src="assets/logo.svg" alt="" class="nav-logo-img">
+      </div>
+      <span class="nav-label">Accueil</span>
+    </div>
+    <div class="nav-item" onclick="goBack('pg-products')">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+      </svg>
+      <span class="nav-label">Pièces</span>
+    </div>
+    <div class="nav-item" onclick="openCart()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
+      </svg>
+      <span class="nav-label">Panier</span>
+    </div>
+    <div class="nav-item" onclick="goPage('pg-contact')">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+      </svg>
+      <span class="nav-label">Contact</span>
+    </div>
+  </nav>
+</div><!-- /#pg-products -->
+
+<!-- ══════════════════════════════════════
+     PAGE 3 — CHECKOUT
+     ══════════════════════════════════════ -->
+<div class="page state-right" id="pg-checkout">
+  <header class="ck-header">
+    <button class="icon-btn ck-back" onclick="goBack('pg-products')" aria-label="Retour">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+    </button>
+    <!-- Logo → home -->
+    <a class="logo" href="#" onclick="goHome();return false;">
+      <img src="assets/logo.svg" alt="">
+      <span class="logo-name">clicauto<span>.ma</span></span>
+    </a>
+  </header>
+
+  <!-- Stepper — chaque étape est cliquable -->
+  <div class="stepper">
+    <div class="step-item done" onclick="goHome()" style="cursor:pointer" title="Retour accueil">
+      <div class="step-circle">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#007AFF" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+      </div>
+      <span class="step-lbl">Véhicule</span>
+    </div>
+    <div class="step-item done" onclick="goBack('pg-products')" style="cursor:pointer" title="Retour catégorie">
+      <div class="step-circle">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#007AFF" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+      </div>
+      <span class="step-lbl">Catégorie</span>
+    </div>
+    <div class="step-item done" onclick="openCart()" style="cursor:pointer" title="Voir le panier">
+      <div class="step-circle">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#007AFF" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+      </div>
+      <span class="step-lbl">Produit</span>
+    </div>
+    <div class="step-item active">
+      <div class="step-circle">4</div>
+      <span class="step-lbl">Commande</span>
+    </div>
+  </div>
+
+  <!-- Dynamic items list (filled by JS) -->
+  <div id="ck-items-list" class="ck-items-list"></div>
+  <!-- Total row (shown only for multiple items) -->
+  <div id="ck-total-row" class="ck-total-row" style="display:none">
+    <span class="ck-total-label">Total commande</span>
+    <span class="ck-total-amount" id="ck-total-amount"></span>
+  </div>
+
+  <!-- Form -->
+  <div class="ck-body">
+    <div class="f-field">
+      <div class="f-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--label-3)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div>
+      <input id="f-name" class="f-input" type="text" placeholder=" " autocomplete="name">
+      <label class="f-label" for="f-name">Nom et prénom</label>
+    </div>
+
+    <div class="f-field">
+      <div class="f-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--label-3)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg></div>
+      <input id="f-addr" class="f-input" type="text" placeholder=" " autocomplete="street-address">
+      <label class="f-label" for="f-addr">Adresse de livraison</label>
+    </div>
+
+    <div class="f-field">
+      <div class="f-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--label-3)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13.6 19.79 19.79 0 0 1 1.63 5a2 2 0 0 1 1.99-2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 10.1a16 16 0 0 0 6 6l.91-1.91a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg></div>
+      <input id="f-tel" class="f-input" type="tel" placeholder=" " autocomplete="tel">
+      <label class="f-label" for="f-tel">Téléphone</label>
+      <span class="f-badge">Obligatoire</span>
+    </div>
+
+    <button class="btn-buy" id="btn-buy" onclick="handleOrder()">
+      Confirmer la commande
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+    </button>
+    <div class="secure-note">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+      Paiement à la livraison · 100% sécurisé
+    </div>
+  </div>
+</div><!-- /#pg-checkout -->
+
+<!-- ══════════════════════════════════════
+     PAGE 4 — CONTACT
+     ══════════════════════════════════════ -->
+<div class="page state-right" id="pg-contact">
+
+  <!-- Header minimal -->
+  <header class="ct-header">
+    <button class="icon-btn ct-back" onclick="goBack('pg-vehicle')" aria-label="Retour">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+    </button>
+    <span class="ct-header-title">Contact</span>
+  </header>
+
+  <!-- Hero -->
+  <div class="ct-hero">
+    <div class="ct-hero-badge">Support client</div>
+    <h1 class="ct-hero-h1">Besoin d'aide ?<br>On est là pour vous.</h1>
+    <p class="ct-hero-sub">Trouvez votre pièce ou posez vos questions — réponse en moins d'une heure.</p>
+  </div>
+
+  <!-- Actions rapides -->
+  <div class="ct-quick">
+    <a class="ct-quick-btn ct-quick-call" href="tel:+212661520695">
+      <span class="ct-qb-ico">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13.6 19.79 19.79 0 0 1 1.63 5a2 2 0 0 1 1.99-2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 10.1a16 16 0 0 0 6 6l.91-1.91a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+      </span>
+      <span class="ct-qb-txt">
+        <span class="ct-qb-top">Appeler</span>
+        <span class="ct-qb-bot">+212 6 61 52 06 95</span>
+      </span>
+    </a>
+    <a class="ct-quick-btn ct-quick-wa" href="https://wa.me/212661520695" target="_blank">
+      <span class="ct-qb-ico">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413z"/></svg>
+      </span>
+      <span class="ct-qb-txt">
+        <span class="ct-qb-top">WhatsApp</span>
+        <span class="ct-qb-bot">Réponse rapide</span>
+      </span>
+    </a>
+  </div>
+
+  <!-- Séparateur -->
+  <div class="ct-divider"><span>ou envoyez un message</span></div>
+
+  <!-- Formulaire -->
+  <div class="ct-form">
+    <div class="cf-field">
+      <label class="cf-label" for="ct-name">Nom complet</label>
+      <div class="cf-input-wrap">
+        <svg class="cf-ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        <input id="ct-name" class="cf-input" type="text" placeholder="Votre nom" autocomplete="name">
+      </div>
+    </div>
+
+    <div class="cf-row">
+      <div class="cf-field">
+        <label class="cf-label" for="ct-phone">Téléphone</label>
+        <div class="cf-input-wrap">
+          <svg class="cf-ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13.6 19.79 19.79 0 0 1 1.63 5a2 2 0 0 1 1.99-2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 10.1a16 16 0 0 0 6 6l.91-1.91a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+          <input id="ct-phone" class="cf-input" type="tel" placeholder="06XX-XXX-XXX" autocomplete="tel">
+        </div>
+      </div>
+      <div class="cf-field">
+        <label class="cf-label" for="ct-city">Ville</label>
+        <div class="cf-input-wrap cf-select-wrap">
+          <svg class="cf-ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+          <select id="ct-city" class="cf-input cf-select">
+            <option value="">Ville</option>
+            <option>Casablanca</option><option>Rabat</option><option>Marrakech</option>
+            <option>Fès</option><option>Tanger</option><option>Agadir</option>
+            <option>Meknès</option><option>Oujda</option><option>Kénitra</option>
+            <option>Tétouan</option><option>Salé</option><option>El Jadida</option>
+            <option>Béni Mellal</option><option>Nador</option><option>Settat</option>
+            <option>Khouribga</option><option>Safi</option><option>Mohammedia</option>
+            <option>Laâyoune</option><option>Dakhla</option><option>Taza</option>
+            <option>Khémisset</option><option>Ifrane</option><option>Essaouira</option>
+            <option>Ouarzazate</option><option>Tiznit</option><option>Taroudant</option>
+            <option>Guelmim</option><option>Al Hoceima</option><option>Chefchaouen</option>
+          </select>
+          <svg class="cf-caret" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
+      </div>
+    </div>
+
+    <div class="cf-field">
+      <label class="cf-label" for="ct-msg">Message <span style="font-weight:400;color:var(--label-3)">(optionnel)</span></label>
+      <div class="cf-msg-box">
+        <div class="cf-input-wrap cf-ta-wrap" style="margin-bottom:0">
+          <svg class="cf-ico" style="top:14px;transform:none" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          <textarea id="ct-msg" class="cf-input cf-textarea" placeholder="Décrivez votre besoin, la référence du véhicule…" rows="3" style="border-radius:12px 12px 0 0;border-bottom:none;box-shadow:none"></textarea>
+        </div>
+        <!-- Barre photos -->
+        <div class="cf-photo-bar">
+          <div class="cf-photo-thumbs" id="ct-photo-thumbs"></div>
+          <button type="button" class="cf-photo-add" onclick="document.getElementById('ct-photos').click()">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+            Photos
+          </button>
+          <input type="file" id="ct-photos" accept="image/*" multiple style="display:none" onchange="ctAddPhotos(this)">
+        </div>
+      </div>
+    </div>
+
+    <button class="btn-send" id="btn-send" onclick="handleContact()">
+      <svg class="btn-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+      <span class="btn-label">Envoyer le message</span>
+      <div class="spinner"></div>
+    </button>
+  </div>
+</div>
+</div><!-- #app -->
+
+
+<!-- ══════════════════════════════════════
+     MODALS
+     ══════════════════════════════════════ -->
+
+<!-- ── PRODUCT DETAIL SHEET ── -->
+<div id="pd-overlay" class="pd-overlay" style="display:none" onclick="closeProductDetail()">
+  <div id="pd-sheet" class="pd-sheet" onclick="event.stopPropagation()">
+    <div class="modal-pill"></div>
+
+    <!-- Photo voiture — EN TÊTE du sheet (si disponible) -->
+    <div class="pd-car-banner" id="pd-car-banner" style="display:none">
+      <button class="pd-car-back" onclick="closeProductDetail()" aria-label="Retour">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      <img class="pd-car-img" id="pd-car-img" alt="" onerror="document.getElementById('pd-car-banner').style.display='none'">
+      <div class="pd-car-label" id="pd-car-label"></div>
+    </div>
+
+    <!-- Photo gallery (pièce) -->
+    <div class="pd-gallery" id="pd-gallery">
+      <div class="pd-track-wrap">
+        <div class="pd-track" id="pd-track"></div>
+      </div>
+      <div class="pd-photo-dots" id="pd-photo-dots"></div>
+      <button class="pd-arrow pd-arrow-l" id="pd-arrow-l" onclick="event.stopPropagation();_pdGoTo(_pdPhotoIdx-1)" style="opacity:0">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      <button class="pd-arrow pd-arrow-r" id="pd-arrow-r" onclick="event.stopPropagation();_pdGoTo(_pdPhotoIdx+1)" style="opacity:0">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+      </button>
+      <button class="pd-close" onclick="closeProductDetail()" aria-label="Fermer">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+      <div class="pd-zoom-hint">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+      </div>
+    </div>
+
+    <!-- Info -->
+    <div class="pd-info">
+      <div class="pd-name" id="pd-name"></div>
+      <div class="pd-veh" id="pd-veh"></div>
+      <div class="pd-price" id="pd-price"></div>
+      <div class="pd-actions">
+        <button class="pd-add-btn" id="pd-add-btn" onclick="_pdAddCart()">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Ajouter au panier
+        </button>
+        <button class="pd-order-btn" onclick="closeProductDetail();if(_pdProduct)openCheckout(_pdProduct)">
+          Commander
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Photo zoom fullscreen -->
+<div id="img-zoom-overlay" onclick="closeImgZoom()" style="display:none">
+  <button class="img-zoom-close" onclick="event.stopPropagation();closeImgZoom()" aria-label="Fermer">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+  </button>
+  <img id="img-zoom-img" alt="">
+</div>
+
+<!-- Order success -->
+<div class="modal-overlay" id="modal-order">
+  <div class="modal-sheet">
+    <div class="modal-pill"></div>
+    <div class="modal-icon">
+      <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+    </div>
+    <div class="modal-title">Commande confirmée !</div>
+    <div class="modal-sub">Votre commande a été envoyée avec succès. Notre équipe vous contactera bientôt pour confirmer la livraison.</div>
+    <button class="modal-btn" onclick="closeModal('modal-order')">Retour aux produits</button>
+  </div>
+</div>
+
+<!-- Contact success -->
+<div class="modal-overlay" id="modal-contact">
+  <div class="modal-sheet">
+    <div class="modal-pill"></div>
+    <div class="modal-icon">
+      <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+    </div>
+    <div class="modal-title">Message envoyé !</div>
+    <div class="modal-sub">Merci pour votre message. Notre équipe vous répondra dans les plus brefs délais.</div>
+    <button class="modal-btn" onclick="closeModal('modal-contact')">Fermer</button>
+  </div>
+</div>
+
+<!-- Cart drawer -->
+<div class="modal-overlay" id="cart-drawer">
+  <div class="modal-sheet">
+    <div class="modal-pill"></div>
+    <div class="drawer-header">
+      <span class="drawer-title">Mon Panier</span>
+      <span class="drawer-count" id="cart-drawer-count">0 article</span>
+    </div>
+    <div class="drawer-list" id="cart-items"></div>
+    <!-- Total row -->
+    <div class="drawer-total-row" id="cart-drawer-total" style="display:none">
+      <span class="drawer-total-label">Total</span>
+      <span class="drawer-total-amount" id="cart-total-amount"></span>
+    </div>
+    <!-- Commander tout -->
+    <button class="drawer-order-btn" id="cart-order-btn" style="display:none" onclick="openCartCheckout()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      Commander tout le panier
+    </button>
+    <button class="modal-btn-ghost" onclick="closeModal('cart-drawer')">Fermer</button>
+  </div>
+</div>
+
+
+<!-- Scan overlay -->
+<div id="scan-overlay" class="scan-overlay" style="display:none" role="dialog" aria-modal="true">
+  <div class="scan-modal">
+    <div class="scan-spinner" id="scan-spinner"></div>
+    <svg id="scan-success-icon" width="44" height="44" viewBox="0 0 44 44" fill="none" style="display:none">
+      <circle cx="22" cy="22" r="21" stroke="#30D158" stroke-width="2.5"/>
+      <path d="M13 22l6 6 12-12" stroke="#30D158" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    <p id="scan-msg" class="scan-msg">Initialisation…</p>
+    <button id="scan-cancel-btn" class="scan-cancel-btn" onclick="cancelScan()">Annuler</button>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════
+     PC E-COMMERCE VIEW (≥ 1024 px)
+     ══════════════════════════════════════ -->
+<div id="pc-view">
+
+  <!-- ── HEADER ── -->
+  <header class="pc-head">
+    <a class="pc-logo" href="#" onclick="return false;">
+      <img src="assets/logo.svg" alt="">
+      <span class="pc-logo-name">clicauto<span>.ma</span></span>
+    </a>
+
+    <div class="pc-head-search">
+      <svg class="pc-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      <input id="pc-search-input" type="text" placeholder="Rechercher une pièce, une marque, un modèle…" autocomplete="off" spellcheck="false">
+      <button id="pc-search-clear" class="pc-search-clear-btn" style="display:none" onclick="_pcClearSearch()">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+
+    <div class="pc-head-actions">
+      <button class="pc-contact-head-btn" onclick="_pcOpenContact()">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        Contact
+      </button>
+      <a href="https://wa.me/212661520695" target="_blank" class="pc-wa-btn">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413z"/></svg>
+        WhatsApp
+      </a>
+      <button class="pc-cart-btn" onclick="openCart()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+        Panier
+        <span class="pc-cart-badge" id="pc-cart-count">0</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- ── BODY ── -->
+  <div class="pc-body">
+
+    <!-- SIDEBAR -->
+    <aside class="pc-sidebar">
+
+      <!-- Filtre véhicule -->
+      <div class="pc-filter-section pc-veh-section">
+        <div class="pc-filter-title">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13" rx="2"/><path d="M16 8h4l3 5v3h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+          Filtrer par véhicule
+        </div>
+        <div class="pc-veh-selects">
+          <div class="pc-veh-field">
+            <label class="pc-veh-label">Marque</label>
+            <select id="pc-veh-brand" class="pc-veh-select" onchange="_pcVehBrandChange()">
+              <option value="">Sélectionner…</option>
+            </select>
+          </div>
+          <div class="pc-veh-field">
+            <label class="pc-veh-label">Modèle</label>
+            <select id="pc-veh-model" class="pc-veh-select" onchange="_pcVehModelChange()" disabled>
+              <option value="">— choisir la marque —</option>
+            </select>
+          </div>
+          <div class="pc-veh-field">
+            <label class="pc-veh-label">Année</label>
+            <select id="pc-veh-year" class="pc-veh-select" disabled>
+              <option value="">Toutes les années</option>
+            </select>
+          </div>
+        </div>
+        <button class="pc-veh-apply" id="pc-veh-apply" onclick="_pcApplyVehicle()" disabled>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          Rechercher ce véhicule
+        </button>
+        <button class="pc-veh-clear" id="pc-veh-clear" onclick="_pcClearVehicle()" style="display:none">
+          Effacer le filtre véhicule
+        </button>
+      </div>
+
+      <!-- Catégorie -->
+      <div class="pc-filter-section">
+        <div class="pc-filter-title">Catégorie</div>
+        <div id="pc-cat-filters"></div>
+      </div>
+
+      <!-- Marque -->
+      <div class="pc-filter-section">
+        <div class="pc-filter-title">Marque</div>
+        <div id="pc-brand-filters"></div>
+      </div>
+
+      <!-- Contact -->
+      <div class="pc-sidebar-contact">
+        <p>Besoin d'aide pour trouver votre pièce ?</p>
+        <a href="https://wa.me/212661520695" target="_blank" class="pc-sidebar-wa">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413z"/></svg>
+          Contacter sur WhatsApp
+        </a>
+        <button class="pc-sidebar-contact-btn" onclick="_pcOpenContact()">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          Envoyer un message
+        </button>
+      </div>
+
+    </aside>
+
+    <!-- MAIN -->
+    <main class="pc-main">
+
+      <div class="pc-result-bar">
+        <span class="pc-result-count" id="pc-result-count">Chargement…</span>
+        <div class="pc-sort-wrap">
+          <select id="pc-sort" onchange="_pcSetSort()">
+            <option value="def">Tri par défaut</option>
+            <option value="price-asc">Prix croissant</option>
+            <option value="price-desc">Prix décroissant</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Filtres actifs -->
+      <div class="pc-filters-bar" id="pc-filters-bar" style="display:none"></div>
+
+      <div class="pc-grid" id="pc-grid"></div>
+
+    </main>
+
+  </div><!-- /.pc-body -->
+
+  <!-- ── FOOTER ── -->
+  <footer class="pc-footer">
+    <div class="pc-footer-inner">
+      <span class="pc-footer-logo">clicauto<span>.ma</span></span>
+      <span class="pc-footer-sep">·</span>
+      <span>Pièces de carrosserie · Livraison au Maroc</span>
+      <span class="pc-footer-sep">·</span>
+      <a href="https://wa.me/212661520695" target="_blank">+212 6 61 52 06 95</a>
+    </div>
+  </footer>
+
+</div><!-- #pc-view -->
+
+
+<!-- ── PC CHECKOUT MODAL ── -->
+<div id="pc-checkout-overlay" class="pc-ov" style="display:none" onclick="if(event.target===this)_pcCloseCheckout()">
+  <div class="pc-ov-panel pc-ck-panel">
+    <div class="pc-ov-head">
+      <h2 class="pc-ov-title">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+        Confirmer la commande
+      </h2>
+      <button class="pc-ov-close" onclick="_pcCloseCheckout()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+
+    <!-- Articles -->
+    <div class="pc-ck-items" id="pc-ck-items"></div>
+    <div class="pc-ck-total" id="pc-ck-total" style="display:none"></div>
+
+    <!-- Séparateur -->
+    <div class="pc-ov-sep"><span>Vos informations de livraison</span></div>
+
+    <!-- Formulaire -->
+    <div class="pc-ck-form">
+      <div class="pc-ck-row">
+        <div class="pc-ck-field">
+          <label class="pc-ck-label" for="pc-f-name">Nom et prénom <span class="pc-req">*</span></label>
+          <input id="pc-f-name" class="pc-ck-input" type="text" placeholder="Votre nom" autocomplete="name">
+        </div>
+        <div class="pc-ck-field">
+          <label class="pc-ck-label" for="pc-f-tel">Téléphone <span class="pc-req">*</span></label>
+          <input id="pc-f-tel" class="pc-ck-input" type="tel" placeholder="06XX-XXX-XXX" autocomplete="tel">
+        </div>
+      </div>
+      <div class="pc-ck-field">
+        <label class="pc-ck-label" for="pc-f-addr">Adresse de livraison</label>
+        <input id="pc-f-addr" class="pc-ck-input" type="text" placeholder="Ville, quartier, rue…" autocomplete="street-address">
+      </div>
+      <button class="pc-ck-submit" onclick="_pcHandleOrder()">
+        Confirmer la commande
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+      </button>
+      <div class="pc-ck-secure">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        Paiement à la livraison · 100% sécurisé
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ── PC CONTACT MODAL ── -->
+<div id="pc-contact-overlay" class="pc-ov" style="display:none" onclick="if(event.target===this)_pcCloseContact()">
+  <div class="pc-ov-panel pc-ct-panel">
+    <div class="pc-ov-head">
+      <h2 class="pc-ov-title">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        Nous contacter
+      </h2>
+      <button class="pc-ov-close" onclick="_pcCloseContact()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+
+    <!-- Actions rapides -->
+    <div class="pc-ct-quick">
+      <a href="tel:+212661520695" class="pc-ct-qbtn pc-ct-call">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13.6 19.79 19.79 0 0 1 1.63 5a2 2 0 0 1 1.99-2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 10.1a16 16 0 0 0 6 6l.91-1.91a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+        <div><span>Appeler</span><small>+212 6 61 52 06 95</small></div>
+      </a>
+      <a href="https://wa.me/212661520695" target="_blank" class="pc-ct-qbtn pc-ct-wa">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413z"/></svg>
+        <div><span>WhatsApp</span><small>Réponse rapide</small></div>
+      </a>
+    </div>
+
+    <div class="pc-ov-sep"><span>ou envoyez un message</span></div>
+
+    <!-- Formulaire -->
+    <div class="pc-ct-form">
+      <div class="pc-ck-row">
+        <div class="pc-ck-field">
+          <label class="pc-ck-label" for="pc-ct-name">Nom complet <span class="pc-req">*</span></label>
+          <input id="pc-ct-name" class="pc-ck-input" type="text" placeholder="Votre nom" autocomplete="name">
+        </div>
+        <div class="pc-ck-field">
+          <label class="pc-ck-label" for="pc-ct-phone">Téléphone <span class="pc-req">*</span></label>
+          <input id="pc-ct-phone" class="pc-ck-input" type="tel" placeholder="06XX-XXX-XXX" autocomplete="tel">
+        </div>
+      </div>
+      <div class="pc-ck-field">
+        <label class="pc-ck-label" for="pc-ct-city">Ville <span class="pc-req">*</span></label>
+        <select id="pc-ct-city" class="pc-ck-input" style="cursor:pointer">
+          <option value="">Sélectionner votre ville</option>
+          <option>Casablanca</option><option>Rabat</option><option>Marrakech</option>
+          <option>Fès</option><option>Tanger</option><option>Agadir</option>
+          <option>Meknès</option><option>Oujda</option><option>Kénitra</option>
+          <option>Tétouan</option><option>Salé</option><option>El Jadida</option>
+          <option>Béni Mellal</option><option>Nador</option><option>Settat</option>
+          <option>Mohammedia</option><option>Safi</option><option>Laâyoune</option>
+          <option>Dakhla</option><option>Chefchaouen</option><option>Ouarzazate</option>
+        </select>
+      </div>
+      <div class="pc-ck-field">
+        <label class="pc-ck-label" for="pc-ct-msg">Message (optionnel)</label>
+        <textarea id="pc-ct-msg" class="pc-ck-input pc-ck-ta" placeholder="Décrivez votre besoin, la référence du véhicule…" rows="3"></textarea>
+      </div>
+      <button class="pc-ck-submit" id="pc-ct-submit" onclick="_pcHandleContact()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        Envoyer le message
+      </button>
+    </div>
+  </div>
+</div>
+
+
+<script src="js/data.js?v=14"></script>
+<script src="js/products.js?v=11"></script>
+<script src="js/app.js?v=32"></script>
+
+<!-- Chargement Firestore via REST API (zéro SDK, zéro dépendance) -->
+<script>
+(function() {
+  var PROJECT = 'cliccarrosserie-9f29d';
+  var API_KEY = 'AIzaSyBirUSp9Kv7oBZ4m79H3YFNaUWydaPP-CQ';
+  var BASE    = 'https://firestore.googleapis.com/v1/projects/' + PROJECT + '/databases/(default)/documents';
+
+  window.FIREBASE_DATA = window.FIREBASE_DATA || { products:[], vehicles:[] };
+
+  /* ── Décode un champ Firestore → valeur JS ── */
+  function parseVal(v) {
+    if (!v) return null;
+    if ('stringValue'    in v) return v.stringValue;
+    if ('integerValue'   in v) return Number(v.integerValue);
+    if ('doubleValue'    in v) return v.doubleValue;
+    if ('booleanValue'   in v) return v.booleanValue;
+    if ('nullValue'      in v) return null;
+    if ('timestampValue' in v) return v.timestampValue;
+    if ('arrayValue'     in v) return (v.arrayValue.values || []).map(parseVal);
+    if ('mapValue'       in v) return parseFields(v.mapValue.fields || {});
+    return null;
+  }
+  function parseFields(f) {
+    var o = {};
+    for (var k in f) o[k] = parseVal(f[k]);
+    return o;
+  }
+  function parseDoc(doc) {
+    return Object.assign({ id: doc.name.split('/').pop() }, parseFields(doc.fields || {}));
+  }
+
+  /* ── Encode valeur JS → champ Firestore ── */
+  function encodeVal(v) {
+    if (v === null || v === undefined) return { nullValue: null };
+    if (typeof v === 'boolean') return { booleanValue: v };
+    if (typeof v === 'number')  return Number.isInteger(v) ? { integerValue: String(v) } : { doubleValue: v };
+    if (typeof v === 'string')  return { stringValue: v };
+    if (Array.isArray(v))       return { arrayValue: { values: v.map(encodeVal) } };
+    if (typeof v === 'object')  return { mapValue: { fields: encodeFields(v) } };
+    return { stringValue: String(v) };
+  }
+  function encodeFields(obj) {
+    var f = {};
+    for (var k in obj) {
+      if (obj[k] === undefined) continue;
+      if (typeof obj[k] === 'string' && obj[k].startsWith('data:')) continue;
+      f[k] = encodeVal(obj[k]);
+    }
+    return f;
+  }
+
+  /* ── Lecture collection ── */
+  function fsGet(col) {
+    return fetch(BASE + '/' + col + '?key=' + API_KEY)
+      .then(function(r) { return r.json(); })
+      .then(function(d) { return (d.documents || []).map(parseDoc); });
+  }
+
+  /* ── Écriture document ── */
+  function fsSet(col, id, obj) {
+    return fetch(BASE + '/' + col + '/' + encodeURIComponent(String(id)) + '?key=' + API_KEY, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fields: encodeFields(obj) })
+    });
+  }
+
+  /* ── Expose les écritures pour commandes/messages ── */
+  window._fsOps = {
+    saveOrder:   function(o) { fsSet('orders',   o.id, o).catch(function(e){ console.warn('FS order', e); }); },
+    saveMessage: function(m) { fsSet('messages', m.id, m).catch(function(e){ console.warn('FS msg', e); }); }
+  };
+
+  /* ── Charge produits + véhicules et met à jour l'UI ── */
+  function load() {
+    Promise.all([ fsGet('products'), fsGet('vehicles') ])
+      .then(function(res) {
+        var prods = res[0], vehs = res[1];
+        console.info('[ClicAuto] Firestore OK :', prods.length, 'produits,', vehs.length, 'véhicules');
+        window.FIREBASE_DATA.products = prods;
+        window.FIREBASE_DATA.vehicles = vehs;
+        if (typeof window._reloadProducts === 'function') window._reloadProducts();
+        if (typeof window._pickerFill    === 'function') window._pickerFill();
+      })
+      .catch(function(err) {
+        console.error('[ClicAuto] Firestore REST erreur:', err.message);
+      });
+  }
+
+  load();
+})();
+</script>
+</body>
+</html>
