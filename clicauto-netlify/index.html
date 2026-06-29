@@ -817,144 +817,84 @@
 <script src="js/products.js?v=11"></script>
 <script src="js/app.js?v=32"></script>
 
-<!-- Chargement Firestore via REST API (zéro SDK, zéro dépendance) -->
+<!-- Chargement Firestore via REST API -->
 <script>
 (function() {
-  var PROJECT  = 'cliccarrosserie-9f29d';
-  var API_KEY  = 'AIzaSyBirUSp9Kv7oBZ4m79H3YFNaUWydaPP-CQ';
-  var EMAIL    = 'lecteur@clicauto.ma';
-  var PASSWORD = 'Medmarouane1234@';
-  var BASE     = 'https://firestore.googleapis.com/v1/projects/' + PROJECT + '/databases/(default)/documents';
+  var PROJECT = 'cliccarrosserie-9f29d';
+  var API_KEY = 'AIzaSyBirUSp9Kv7oBZ4m79H3YFNaUWydaPP-CQ';
+  var BASE    = 'https://firestore.googleapis.com/v1/projects/'+PROJECT+'/databases/(default)/documents';
 
-  window.FIREBASE_DATA = window.FIREBASE_DATA || { products:[], vehicles:[] };
+  window.FIREBASE_DATA = { products:[], vehicles:[] };
 
-  /* ── Décode un champ Firestore → valeur JS ── */
   function parseVal(v) {
     if (!v) return null;
-    if ('stringValue'    in v) return v.stringValue;
-    if ('integerValue'   in v) return Number(v.integerValue);
-    if ('doubleValue'    in v) return v.doubleValue;
-    if ('booleanValue'   in v) return v.booleanValue;
-    if ('nullValue'      in v) return null;
-    if ('timestampValue' in v) return v.timestampValue;
-    if ('arrayValue'     in v) return (v.arrayValue.values || []).map(parseVal);
-    if ('mapValue'       in v) return parseFields(v.mapValue.fields || {});
+    if ('stringValue'  in v) return v.stringValue;
+    if ('integerValue' in v) return Number(v.integerValue);
+    if ('doubleValue'  in v) return v.doubleValue;
+    if ('booleanValue' in v) return v.booleanValue;
+    if ('arrayValue'   in v) return (v.arrayValue.values||[]).map(parseVal);
+    if ('mapValue'     in v) return parseFields(v.mapValue.fields||{});
     return null;
   }
-  function parseFields(f) {
-    var o = {};
-    for (var k in f) o[k] = parseVal(f[k]);
-    return o;
-  }
-  function parseDoc(doc) {
-    return Object.assign({ id: doc.name.split('/').pop() }, parseFields(doc.fields || {}));
-  }
+  function parseFields(f) { var o={}; for(var k in f) o[k]=parseVal(f[k]); return o; }
+  function parseDoc(d)     { return Object.assign({id:d.name.split('/').pop()},parseFields(d.fields||{})); }
 
-  /* ── Encode valeur JS → champ Firestore ── */
   function encodeVal(v) {
-    if (v === null || v === undefined) return { nullValue: null };
-    if (typeof v === 'boolean') return { booleanValue: v };
-    if (typeof v === 'number')  return Number.isInteger(v) ? { integerValue: String(v) } : { doubleValue: v };
-    if (typeof v === 'string')  return { stringValue: v };
-    if (Array.isArray(v))       return { arrayValue: { values: v.map(encodeVal) } };
-    if (typeof v === 'object')  return { mapValue: { fields: encodeFields(v) } };
-    return { stringValue: String(v) };
+    if (v===null||v===undefined) return {nullValue:null};
+    if (typeof v==='boolean')    return {booleanValue:v};
+    if (typeof v==='number')     return Number.isInteger(v)?{integerValue:String(v)}:{doubleValue:v};
+    if (typeof v==='string')     return {stringValue:v};
+    if (Array.isArray(v))        return {arrayValue:{values:v.map(encodeVal)}};
+    if (typeof v==='object')     return {mapValue:{fields:encodeFields(v)}};
+    return {stringValue:String(v)};
   }
   function encodeFields(obj) {
-    var f = {};
-    for (var k in obj) {
-      if (obj[k] === undefined) continue;
-      if (typeof obj[k] === 'string' && obj[k].startsWith('data:')) continue;
-      f[k] = encodeVal(obj[k]);
+    var f={};
+    for(var k in obj){
+      if(obj[k]===undefined) continue;
+      if(typeof obj[k]==='string'&&obj[k].startsWith('data:')) continue;
+      f[k]=encodeVal(obj[k]);
     }
     return f;
   }
 
-  /* ── Lecture collection ── */
   function fsGet(col) {
-    return fetch(BASE + '/' + col + '?key=' + API_KEY)
-      .then(function(r) { return r.json(); })
-      .then(function(d) { return (d.documents || []).map(parseDoc); });
-  }
-
-  /* ── Écriture document ── */
-  function fsSet(col, id, obj) {
-    return fetch(BASE + '/' + col + '/' + encodeURIComponent(String(id)) + '?key=' + API_KEY, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ fields: encodeFields(obj) })
-    });
-  }
-
-  /* ── Expose les écritures pour commandes/messages ── */
-  window._fsOps = {
-    saveOrder:   function(o) { fsSet('orders',   o.id, o).catch(function(e){ console.warn('FS order', e); }); },
-    saveMessage: function(m) { fsSet('messages', m.id, m).catch(function(e){ console.warn('FS msg', e); }); }
-  };
-
-  var _token = null;
-
-  /* ── Auth anonyme REST → obtenir un token Firebase ── */
-  function getToken() {
-    return fetch('https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=' + API_KEY, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: EMAIL, password: PASSWORD, returnSecureToken: true })
-    })
-    .then(function(r) { return r.json(); })
-    .then(function(d) {
-      if (d.error) throw new Error(d.error.message);
-      return d.idToken;
-    });
-  }
-
-  /* ── Lecture collection avec token ── */
-  function fsGet(col) {
-    var headers = _token ? { 'Authorization': 'Bearer ' + _token } : {};
-    return fetch(BASE + '/' + col + '?key=' + API_KEY, { headers: headers })
-      .then(function(r) { return r.json(); })
-      .then(function(d) {
-        if (d.error) throw new Error(d.error.message);
-        return (d.documents || []).map(parseDoc);
+    return fetch(BASE+'/'+col+'?key='+API_KEY+'&pageSize=300')
+      .then(function(r){ return r.json(); })
+      .then(function(d){
+        if(d.error) throw new Error(JSON.stringify(d.error));
+        return (d.documents||[]).map(parseDoc);
       });
   }
 
-  /* ── Applique les données à l'UI ── */
+  function fsSet(col, id, obj) {
+    return fetch(BASE+'/'+col+'/'+encodeURIComponent(String(id))+'?key='+API_KEY, {
+      method:'PATCH',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({fields:encodeFields(obj)})
+    });
+  }
+
+  window._fsOps = {
+    saveOrder:   function(o){ fsSet('orders',  o.id,o).catch(function(e){console.warn('FS',e);}); },
+    saveMessage: function(m){ fsSet('messages',m.id,m).catch(function(e){console.warn('FS',e);}); }
+  };
+
   function applyData(prods, vehs) {
     window.FIREBASE_DATA.products = prods;
     window.FIREBASE_DATA.vehicles = vehs;
-    if (typeof window._reloadProducts === 'function') window._reloadProducts();
-    if (typeof window._pickerFill    === 'function') window._pickerFill();
-    /* Indicateur visible temporaire */
-    var el = document.createElement('div');
-    el.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:' + (prods.length ? '#22c55e' : '#f59e0b') + ';color:#fff;padding:8px 18px;border-radius:20px;font-size:13px;font-weight:600;z-index:9999;pointer-events:none';
-    el.textContent = prods.length ? ('☁️ ' + prods.length + ' produits synchronisés') : '⚠️ Firebase : 0 produit trouvé';
+    if(typeof window._reloadProducts==='function') window._reloadProducts();
+    if(typeof window._pickerFill==='function')     window._pickerFill();
+    var el=document.createElement('div');
+    el.style.cssText='position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:'+(prods.length?'#22c55e':'#f59e0b')+';color:#fff;padding:8px 18px;border-radius:20px;font-size:13px;font-weight:600;z-index:9999;pointer-events:none';
+    el.textContent=prods.length?('☁️ '+prods.length+' produits chargés'):'⚠️ Firestore vide';
     document.body.appendChild(el);
-    setTimeout(function(){ el.remove(); }, 5000);
+    setTimeout(function(){ el.remove(); },5000);
   }
 
-  /* ── Chargement principal ── */
-  function load() {
-    getToken()
-      .then(function(tok) {
-        _token = tok;
-        return Promise.all([ fsGet('products'), fsGet('vehicles') ]);
-      })
-      .then(function(res) {
-        console.info('[ClicAuto] OK :', res[0].length, 'produits,', res[1].length, 'véhicules');
-        applyData(res[0], res[1]);
-      })
-      .catch(function(err) {
-        console.error('[ClicAuto] Erreur auth/lecture:', err.message);
-        /* Fallback sans token */
-        _token = null;
-        Promise.all([ fsGet('products'), fsGet('vehicles') ])
-          .then(function(res) { applyData(res[0], res[1]); })
-          .catch(function(e) { console.error('[ClicAuto] Fallback échoué:', e.message); });
-      });
-  }
-
-  load();
+  Promise.all([fsGet('products'),fsGet('vehicles')])
+    .then(function(res){ applyData(res[0],res[1]); })
+    .catch(function(e){ console.error('[ClicAuto]',e.message); });
 })();
 </script>
 </body>
