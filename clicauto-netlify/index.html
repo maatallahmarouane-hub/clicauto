@@ -890,19 +890,62 @@
     saveMessage: function(m) { fsSet('messages', m.id, m).catch(function(e){ console.warn('FS msg', e); }); }
   };
 
-  /* ── Charge produits + véhicules et met à jour l'UI ── */
+  var _token = null;
+
+  /* ── Auth anonyme REST → obtenir un token Firebase ── */
+  function getToken() {
+    return fetch('https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=' + API_KEY, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ returnSecureToken: true })
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(d) { return d.idToken || null; });
+  }
+
+  /* ── Lecture collection avec token ── */
+  function fsGet(col) {
+    var headers = _token ? { 'Authorization': 'Bearer ' + _token } : {};
+    return fetch(BASE + '/' + col + '?key=' + API_KEY, { headers: headers })
+      .then(function(r) { return r.json(); })
+      .then(function(d) {
+        if (d.error) throw new Error(d.error.message);
+        return (d.documents || []).map(parseDoc);
+      });
+  }
+
+  /* ── Applique les données à l'UI ── */
+  function applyData(prods, vehs) {
+    window.FIREBASE_DATA.products = prods;
+    window.FIREBASE_DATA.vehicles = vehs;
+    if (typeof window._reloadProducts === 'function') window._reloadProducts();
+    if (typeof window._pickerFill    === 'function') window._pickerFill();
+    /* Indicateur visible temporaire */
+    var el = document.createElement('div');
+    el.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:' + (prods.length ? '#22c55e' : '#f59e0b') + ';color:#fff;padding:8px 18px;border-radius:20px;font-size:13px;font-weight:600;z-index:9999;pointer-events:none';
+    el.textContent = prods.length ? ('☁️ ' + prods.length + ' produits synchronisés') : '⚠️ Firebase : 0 produit trouvé';
+    document.body.appendChild(el);
+    setTimeout(function(){ el.remove(); }, 5000);
+  }
+
+  /* ── Chargement principal ── */
   function load() {
-    Promise.all([ fsGet('products'), fsGet('vehicles') ])
+    getToken()
+      .then(function(tok) {
+        _token = tok;
+        return Promise.all([ fsGet('products'), fsGet('vehicles') ]);
+      })
       .then(function(res) {
-        var prods = res[0], vehs = res[1];
-        console.info('[ClicAuto] Firestore OK :', prods.length, 'produits,', vehs.length, 'véhicules');
-        window.FIREBASE_DATA.products = prods;
-        window.FIREBASE_DATA.vehicles = vehs;
-        if (typeof window._reloadProducts === 'function') window._reloadProducts();
-        if (typeof window._pickerFill    === 'function') window._pickerFill();
+        console.info('[ClicAuto] OK :', res[0].length, 'produits,', res[1].length, 'véhicules');
+        applyData(res[0], res[1]);
       })
       .catch(function(err) {
-        console.error('[ClicAuto] Firestore REST erreur:', err.message);
+        console.error('[ClicAuto] Erreur auth/lecture:', err.message);
+        /* Fallback sans token */
+        _token = null;
+        Promise.all([ fsGet('products'), fsGet('vehicles') ])
+          .then(function(res) { applyData(res[0], res[1]); })
+          .catch(function(e) { console.error('[ClicAuto] Fallback échoué:', e.message); });
       });
   }
 
