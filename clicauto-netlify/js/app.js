@@ -319,27 +319,30 @@ function _scrollTo(colEl, idx, instant) {
   else colEl.scrollTo({ top: idx * ROW_H, behavior: 'smooth' });
 }
 
+/* Compteur global : incrémenter annule toutes les animations en cours */
+let _animGeneration = 0;
+
 /* Effet roulette smooth — une seule courbe organique, aucune rupture de phase */
 function _colSpinIntro(colEl, duration, delay) {
   const n = colEl.querySelectorAll('.pitem').length;
   if (n < 3) return;
+  const gen = _animGeneration; // capture génération actuelle
   const startIdx = Math.min(n - 1, Math.max(7, Math.floor(n * 0.82)));
   setTimeout(() => {
+    if (_animGeneration !== gen) return; // annulé par un nouveau _pickerFill
     colEl.style.scrollSnapType = 'none';
     colEl.scrollTop = startIdx * ROW_H;
     _syncHighlight(colEl);
     const startTop = startIdx * ROW_H;
     const t0 = performance.now();
 
-    // Courbe unique : smoothstep sur un temps distordu
-    // t^0.82 étire le début (départ doux), comprime la fin (atterrissage très progressif)
-    // smoothstep garantit vitesse=0 au départ ET à l'arrivée — aucun à-coup
     const ease = t => {
       const u = Math.pow(t, 0.78);
       return u * u * (3 - 2 * u);
     };
 
     const frame = now => {
+      if (_animGeneration !== gen) { colEl.scrollTop = 0; _syncHighlight(colEl); return; }
       const t = Math.min((now - t0) / duration, 1);
       colEl.scrollTop = Math.max(0, startTop * (1 - ease(t)));
       _syncHighlight(colEl);
@@ -348,8 +351,6 @@ function _colSpinIntro(colEl, duration, delay) {
       } else {
         colEl.scrollTop = 0;
         _syncHighlight(colEl);
-        // Restaure le snap immédiatement avec scroll-behavior:auto pour éviter
-        // tout re-snap animé par le navigateur (cause du "disparaître/revenir")
         colEl.style.scrollBehavior = 'auto';
         colEl.style.scrollSnapType = '';
         requestAnimationFrame(() => { colEl.style.scrollBehavior = ''; });
@@ -452,6 +453,7 @@ function _pdResolveModel(bIdx, mIdx, yearVal) {
 }
 
 let _pickerListenersAttached = false;
+let _pickerLoadCount = 0; // 0 = premier chargement, >0 = mise à jour Firebase
 
 let _pickerGetBrands = () => BRANDS;
 let _pickerGetModels = bIdx => (BRANDS[bIdx] || BRANDS[0]).models;
@@ -509,10 +511,15 @@ function _pickerFill() {
     });
   });
 
-  // Animation roulette — fonctionne maintenant que scroll-snap est supprimé du CSS
-  _colSpinIntro(brandCol, 1800, 300);
-  _colSpinIntro(modelCol, 1800, 400);
-  _colSpinIntro(yearCol,  1800, 500);
+  // Animation roulette au 1er chargement uniquement
+  // Les mises à jour Firebase (2e appel+) incrémentent _animGeneration → annulent silencieusement
+  _animGeneration++;
+  if (_pickerLoadCount === 0) {
+    _colSpinIntro(brandCol, 1600, 280);
+    _colSpinIntro(modelCol, 1600, 370);
+    _colSpinIntro(yearCol,  1600, 460);
+  }
+  _pickerLoadCount++;
 }
 
 function initPicker() {
@@ -1728,8 +1735,7 @@ function loadProducts(catIdx) {
   const selBrand = S.vehicle ? _norm(S.vehicle.brand) : null;
   const selModel = S.vehicle ? _norm(S.vehicle.model) : null;
 
-  const prods = (PRODUCTS[catId] || []).filter(p => {
-    if (!_yearInRange(p.years, vehicleYear)) return false;
+  const _brandModelFilter = p => {
     if (!selBrand || !p.brand) return true;
     const pb = _norm(p.brand);
     if (pb && !selBrand.includes(pb) && !pb.includes(selBrand)) return false;
@@ -1738,7 +1744,16 @@ function loadProducts(catIdx) {
       if (pm && !pm.includes(selModel) && !selModel.includes(pm)) return false;
     }
     return true;
-  });
+  };
+
+  // 1er passage : filtre strict (marque + modèle + année)
+  let prods = (PRODUCTS[catId] || []).filter(p =>
+    _yearInRange(p.years, vehicleYear) && _brandModelFilter(p)
+  );
+  // 2e passage : si aucun résultat, ignorer l'année (affiche tout pour cette marque/modèle)
+  if (!prods.length && selBrand) {
+    prods = (PRODUCTS[catId] || []).filter(_brandModelFilter);
+  }
 
   grid.innerHTML = '';
   grid.style.opacity = '0';
