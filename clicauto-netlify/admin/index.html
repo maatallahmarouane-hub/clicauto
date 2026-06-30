@@ -2858,7 +2858,7 @@ const KEY_ORDERS = 'clicauto_orders';
 
 function getProds()  { try{return JSON.parse(localStorage.getItem(KEY_PRODS)||'[]');}catch{return[];} }
 function getOrders() { try{return JSON.parse(localStorage.getItem(KEY_ORDERS)||'[]');}catch{return[];} }
-function saveProds(a)  { try{localStorage.setItem(KEY_PRODS, JSON.stringify(a));}catch{toast('⚠️ Stockage plein');} }
+function saveProds(a)  { try{localStorage.setItem(KEY_PRODS, JSON.stringify(a));return true;}catch{toast('⚠️ Stockage plein');return false;} }
 function saveOrders(a) { try{localStorage.setItem(KEY_ORDERS,JSON.stringify(a));}catch{toast('⚠️ Stockage plein');} }
 
 /* ═══════════════════════════════════════════════════════
@@ -4927,10 +4927,10 @@ function processFile(file){
   rd.onload=e=>{
     const img=new Image(); img.onload=()=>{
       const cv=document.createElement('canvas');
-      const MAX=600;let w=img.width,h=img.height;
+      const MAX=400;let w=img.width,h=img.height;
       if(w>MAX){h=Math.round(h*MAX/w);w=MAX;}if(h>MAX){w=Math.round(w*MAX/h);h=MAX;}
       cv.width=w;cv.height=h;const ctx3=cv.getContext('2d');ctx3.fillStyle='#fff';ctx3.fillRect(0,0,w,h);ctx3.drawImage(img,0,0,w,h);
-      const src=cv.toDataURL('image/jpeg',.75);
+      const src=cv.toDataURL('image/jpeg',.65);
       _form.imgData=src; document.getElementById('f-url').value=''; setImgPreview(src);
     };img.src=e.target.result;
   };rd.readAsDataURL(file);
@@ -7091,8 +7091,24 @@ async function syncFromFirebase() {
 /* ── Sync temps réel (pendant que l'admin est ouvert) ── */
 function startRealtimeSync() {
   onSnapshot(collection(db, 'products'), snap => {
-    const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    localStorage.setItem('clicauto_custom_products', JSON.stringify(data));
+    const fbData = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    // Merge: Firebase is source of truth for metadata, local storage preserves images
+    const localData = (() => { try { return JSON.parse(localStorage.getItem('clicauto_custom_products') || '[]'); } catch { return []; } })();
+    const localById = {};
+    localData.forEach(p => { localById[p.id] = p; });
+    const merged = fbData.map(fp => {
+      const lp = localById[fp.id];
+      if (!lp) return fp;
+      return { ...fp,
+        img:  lp.img  || fp.img,
+        imgs: (lp.imgs  && lp.imgs.length)  ? lp.imgs  : (fp.imgs  || []),
+        imgData: lp.imgData || fp.imgData
+      };
+    });
+    // Keep locally-added products not yet confirmed in Firebase
+    const fbIds = new Set(fbData.map(p => p.id));
+    const localOnly = localData.filter(p => !fbIds.has(p.id));
+    localStorage.setItem('clicauto_custom_products', JSON.stringify([...localOnly, ...merged]));
     if (typeof renderStock === 'function') renderStock();
     if (typeof renderProducts === 'function') renderProducts();
   });
@@ -7120,8 +7136,30 @@ function startRealtimeSync() {
 
 /* ── Patch saveProds → Firestore ── */
 const _origSaveProds = window.saveProds;
+async function _compressProdsImgs(prods) {
+  const out = [];
+  for (const p of prods) {
+    const cp = { ...p };
+    if (cp.imgData && cp.imgData.startsWith('data:')) {
+      const c = await _recompressImg(cp.imgData, 300, false, true);
+      if (c && c.length < cp.imgData.length) cp.imgData = c;
+    }
+    if (cp.img && cp.img.startsWith('data:')) {
+      const c = await _recompressImg(cp.img, 300, false, true);
+      if (c && c.length < cp.img.length) cp.img = c;
+    }
+    out.push(cp);
+  }
+  return out;
+}
 window.saveProds = async function(prods) {
-  if (_origSaveProds) _origSaveProds(prods);
+  let saved = _origSaveProds ? _origSaveProds(prods) : false;
+  if (!saved) {
+    // Storage full: auto-compress all images and retry
+    const slim = await _compressProdsImgs(prods);
+    _origSaveProds(slim);
+    _updateStorageBar();
+  }
   if (!auth.currentUser) { console.warn('[Admin] saveProds ignoré: non connecté'); return; }
   try {
     await Promise.all(prods.map(p => setDoc(doc(db, 'products', p.id), fsClean(p))));
