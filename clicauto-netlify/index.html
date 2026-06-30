@@ -894,6 +894,16 @@
   Promise.all([fsGet('products'),fsGet('vehicles')])
     .then(function(res){ applyData(res[0],res[1]); })
     .catch(function(e){ console.error('[ClicAuto]',e.message); });
+
+  /* DEBUG — disparaît après 15s */
+  setTimeout(function(){
+    var brands = document.querySelectorAll('#c-brand .pitem').length;
+    var el=document.createElement('div');
+    el.style.cssText='position:fixed;top:10px;left:50%;transform:translateX(-50%);background:#1e3a8a;color:#fff;padding:6px 14px;border-radius:16px;font-size:12px;font-weight:600;z-index:99999;text-align:center';
+    el.textContent='🔍 brands='+brands+' | _pF='+(typeof window._pickerFill)+' | BRANDS='+(typeof BRANDS);
+    document.body.appendChild(el);
+    setTimeout(function(){el.remove();},15000);
+  },3000);
 })();
 </script>
 </body>
