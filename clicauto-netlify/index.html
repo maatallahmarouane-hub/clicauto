@@ -797,6 +797,51 @@
 <script src="js/data.js?v=14"></script>
 <script src="js/products.js?v=11"></script>
 <script src="js/app.js?v=34"></script>
+<script>
+/* Remplissage direct du picker — fonctionne même si app.js a un problème */
+(function() {
+  function fillPicker() {
+    var brands = (typeof BRANDS !== 'undefined') ? BRANDS : [];
+    var years  = (typeof YEARS  !== 'undefined') ? YEARS  : [];
+    if (!brands.length) return;
+
+    function fill(id, items, label) {
+      var col = document.getElementById(id);
+      if (!col) return;
+      var inner = col.querySelector('.pcol-inner');
+      if (!inner) return;
+      if (inner.children.length) return; /* déjà rempli par app.js */
+      inner.innerHTML = '';
+      items.forEach(function(item, i) {
+        var d = document.createElement('div');
+        d.className = 'pitem' + (i===0?' is-sel':i===1?' is-near':'');
+        d.style.cssText = 'height:44px;display:flex;align-items:center;justify-content:center;padding:0 6px;opacity:' + (i===0?'1':i===1?'0.48':'0.08');
+        var s = document.createElement('span');
+        s.className = 'pitem-label';
+        s.style.cssText = 'font-size:'+(i===0?'20':'14')+'px;font-weight:'+(i===0?'800':'500')+';color:'+(i===0?'#000':'rgba(0,0,0,.55)')+';white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;text-align:center';
+        s.textContent = label(item);
+        d.appendChild(s);
+        inner.appendChild(d);
+      });
+      col.scrollTop = 0;
+    }
+
+    var models = brands[0] ? (brands[0].models || []) : [];
+    fill('c-brand', brands, function(b){ return b.name || b; });
+    fill('c-model', models,  function(m){ return m; });
+    fill('c-year',  years,   function(y){ return y; });
+  }
+
+  /* Essai immédiat (DOM déjà parsé) puis à DOMContentLoaded */
+  fillPicker();
+  document.addEventListener('DOMContentLoaded', function() {
+    fillPicker();
+    /* Garde-fou : si app.js vide le picker sans le remplir, on le refait */
+    setTimeout(fillPicker, 500);
+    setTimeout(fillPicker, 1500);
+  });
+})();
+</script>
 
 <!-- Chargement Firestore via REST API -->
 <script>
