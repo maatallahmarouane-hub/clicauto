@@ -463,38 +463,30 @@ function _pickerFill() {
   const yearCol  = document.getElementById('c-year');
   if (!brandCol || !modelCol || !yearCol) return;
 
-  try { _PD = _buildPickerData(); } catch(e) { _PD = null; }
+  // Toujours utiliser la liste complète BRANDS — le picker admin Firebase
+  // ne remplace plus la liste client (cause : picker vide sur iOS Safari)
+  _PD = null;
+  _useAdminPicker = false;
 
-  _useAdminPicker = !!(_PD && _PD.length > 0);
-
-  if (_useAdminPicker) {
-    _pickerGetBrands = ()           => _PD.map(b => b.name);
-    _pickerGetModels = bIdx         => (_PD[bIdx] || _PD[0]).models.map(m => m.shortName);
-    _pickerGetYears  = (bIdx, mIdx) => _pdYears(bIdx, mIdx);
-  } else {
-    // Fallback BRANDS : dédupliquer par nom court
-    const _dedup = bIdx => {
-      const seen = new Set(); const out = [];
-      ((BRANDS[bIdx] || BRANDS[0]).models || []).forEach(m => {
-        const s = _shortModelDisplay(m) || m;
-        const k = s.toLowerCase();
-        if (!seen.has(k)) { seen.add(k); out.push(s); }
-      });
-      return out;
-    };
-    _pickerGetBrands = ()           => BRANDS;
-    _pickerGetModels = bIdx         => _dedup(bIdx);
-    _pickerGetYears  = (bIdx, mIdx) => YEARS;
-  }
+  const _dedup = bIdx => {
+    const seen = new Set(); const out = [];
+    ((BRANDS[bIdx] || BRANDS[0]).models || []).forEach(m => {
+      const s = _shortModelDisplay(m) || m;
+      const k = s.toLowerCase();
+      if (!seen.has(k)) { seen.add(k); out.push(s); }
+    });
+    return out;
+  };
+  _pickerGetBrands = ()           => BRANDS;
+  _pickerGetModels = bIdx         => _dedup(bIdx);
+  _pickerGetYears  = (bIdx, mIdx) => YEARS;
 
   try {
-    _buildItems(brandCol, _pickerGetBrands(), true);
-    _buildItems(modelCol, _pickerGetModels(0), false);
-    _buildItems(yearCol,  _pickerGetYears(0, 0), false);
-  } catch(e) {
     _buildItems(brandCol, BRANDS, true);
-    _buildItems(modelCol, BRANDS[0].models, false);
+    _buildItems(modelCol, _dedup(0), false);
     _buildItems(yearCol,  YEARS, false);
+  } catch(e) {
+    console.error('[picker]', e);
   }
   S.brand = 0; S.model = 0; S.year = 0;
   _scrollTo(brandCol, 0, true);
@@ -505,10 +497,6 @@ function _pickerFill() {
     _syncHighlight(modelCol);
     _syncHighlight(yearCol);
   }, 60);
-  // Les 3 colonnes défilent exactement en même temps
-  _colSpinIntro(brandCol, 2000, 280);
-  _colSpinIntro(modelCol, 2000, 280);
-  _colSpinIntro(yearCol,  2000, 280);
 }
 
 function initPicker() {
