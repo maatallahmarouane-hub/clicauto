@@ -489,14 +489,19 @@ function _pickerFill() {
     console.error('[picker]', e);
   }
   S.brand = 0; S.model = 0; S.year = 0;
-  _scrollTo(brandCol, 0, true);
-  _scrollTo(modelCol, 0, true);
-  _scrollTo(yearCol,  0, true);
-  setTimeout(() => {
-    _syncHighlight(brandCol);
-    _syncHighlight(modelCol);
-    _syncHighlight(yearCol);
-  }, 60);
+
+  // Double rAF : attend 2 frames pour que iOS Safari termine le layout
+  // avant de fixer scrollTop — sinon le snap CSS réinitialise à une mauvaise position
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      brandCol.scrollTop = 0;
+      modelCol.scrollTop = 0;
+      yearCol.scrollTop  = 0;
+      _syncHighlight(brandCol);
+      _syncHighlight(modelCol);
+      _syncHighlight(yearCol);
+    });
+  });
 }
 
 function initPicker() {

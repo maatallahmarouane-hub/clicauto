@@ -223,7 +223,7 @@ html,body{margin:0;padding:0;overflow:hidden;font-family:var(--font);}
 
 .pcol{
   flex:1;height:var(--picker-h);
-  overflow-y:scroll;scroll-snap-type:y mandatory;
+  overflow-y:scroll;
   -webkit-overflow-scrolling:touch;scrollbar-width:none;
   position:relative;z-index:2;
 }
@@ -233,7 +233,7 @@ html,body{margin:0;padding:0;overflow:hidden;font-family:var(--font);}
 .pitem{
   height:var(--row-h);
   display:flex;align-items:center;justify-content:center;
-  scroll-snap-align:center;cursor:default;user-select:none;
+  cursor:default;user-select:none;
   padding:0 6px;
 }
 .pitem-label{
