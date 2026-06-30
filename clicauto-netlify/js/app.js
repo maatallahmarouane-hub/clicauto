@@ -157,6 +157,7 @@ const S = {
   cart:    [],
   vehicle: null
 };
+window.S = S; // expose pour le picker inline (fallback)
 
 /* ════════════════════════════════════════
    SIZING — dimensions fixées en JS, pas en CSS
@@ -371,7 +372,7 @@ function _attachColumn(colId, onEnd) {
       _scrollTo(col, clamped);
       onEnd(clamped);
       _syncHighlight(col);
-    }, 120);
+    }, 350); // 350ms : laisse le momentum iOS se terminer avant de snapper
   }, { passive: true });
 }
 
@@ -515,6 +516,7 @@ function initPicker() {
   // Attache les listeners UNE SEULE FOIS
   if (!_pickerListenersAttached) {
     _pickerListenersAttached = true;
+    window._pickerReady = true; // signal pour le fallback inline
     _attachColumn('c-brand', idx => {
       S.brand = idx; S.model = 0; S.year = 0;
       _buildItems(modelCol, _pickerGetModels(idx), false);

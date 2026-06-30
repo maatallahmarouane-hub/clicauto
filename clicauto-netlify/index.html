@@ -796,49 +796,133 @@
 
 <script src="js/data.js?v=14"></script>
 <script src="js/products.js?v=11"></script>
-<script src="js/app.js?v=34"></script>
+<script src="js/app.js?v=35"></script>
 <script>
-/* Remplissage direct du picker — fonctionne même si app.js a un problème */
+/* ══════════════════════════════════════════════════════
+   PICKER FALLBACK — actif seulement si app.js échoue
+   Si app.js fonctionne (window._pickerReady=true) ce
+   script ne fait rien. Sinon il prend entièrement en
+   charge : remplissage, scroll-snap, synchronisation.
+   ══════════════════════════════════════════════════════ */
 (function() {
-  function fillPicker() {
-    var brands = (typeof BRANDS !== 'undefined') ? BRANDS : [];
-    var years  = (typeof YEARS  !== 'undefined') ? YEARS  : [];
-    if (!brands.length) return;
+  var ROW_H = 44;
+  var _sBrand = 0, _sModel = 0, _sYear = 0;
 
-    function fill(id, items, label) {
-      var col = document.getElementById(id);
-      if (!col) return;
-      var inner = col.querySelector('.pcol-inner');
-      if (!inner) return;
-      if (inner.children.length) return; /* déjà rempli par app.js */
-      inner.innerHTML = '';
-      items.forEach(function(item, i) {
-        var d = document.createElement('div');
-        d.className = 'pitem' + (i===0?' is-sel':i===1?' is-near':'');
-        d.style.cssText = 'height:44px;display:flex;align-items:center;justify-content:center;padding:0 6px;opacity:' + (i===0?'1':i===1?'0.48':'0.08');
-        var s = document.createElement('span');
-        s.className = 'pitem-label';
-        s.style.cssText = 'font-size:'+(i===0?'20':'14')+'px;font-weight:'+(i===0?'800':'500')+';color:'+(i===0?'#000':'rgba(0,0,0,.55)')+';white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;text-align:center';
-        s.textContent = label(item);
-        d.appendChild(s);
-        inner.appendChild(d);
-      });
-      col.scrollTop = 0;
-    }
-
-    var models = brands[0] ? (brands[0].models || []) : [];
-    fill('c-brand', brands, function(b){ return b.name || b; });
-    fill('c-model', models,  function(m){ return m; });
-    fill('c-year',  years,   function(y){ return y; });
+  function _hi(col) {
+    var sc = col.scrollTop, center = sc / ROW_H;
+    [].forEach.call(col.querySelectorAll('.pitem'), function(el, i) {
+      var d = Math.abs(i - center), sel = d < 0.55;
+      el.classList.toggle('is-sel',  sel);
+      el.classList.toggle('is-near', !sel && d < 1.55);
+      el.style.opacity = Math.max(0.08, 1 - d * 0.52).toFixed(2);
+    });
   }
 
-  /* Essai immédiat (DOM déjà parsé) puis à DOMContentLoaded */
-  fillPicker();
+  function _fill(col, items, label) {
+    var inner = col.querySelector('.pcol-inner');
+    if (!inner) return;
+    inner.innerHTML = '';
+    items.forEach(function(item, i) {
+      var d = document.createElement('div');
+      d.className = 'pitem'; d.dataset.i = i;
+      var s = document.createElement('span');
+      s.className = 'pitem-label';
+      s.textContent = label(item);
+      d.appendChild(s); inner.appendChild(d);
+    });
+    col.scrollTop = 0;
+    requestAnimationFrame(function() { _hi(col); });
+  }
+
+  function _dedup(models) {
+    var seen = {}, out = [];
+    models.forEach(function(m) {
+      var k = (m||'').replace(/\s+[\dA-Z]{1,4}$/, '').toLowerCase().trim() || m.toLowerCase();
+      if (!seen[k]) { seen[k] = 1; out.push(m); }
+    });
+    return out.length ? out : models;
+  }
+
+  function _getModels(bIdx) {
+    var brands = typeof BRANDS !== 'undefined' ? BRANDS : [];
+    var b = brands[bIdx] || brands[0] || {};
+    return _dedup(b.models || []);
+  }
+
+  function _snap(col, onEnd) {
+    var t;
+    col.addEventListener('scroll', function() {
+      _hi(col);
+      clearTimeout(t);
+      t = setTimeout(function() {
+        var idx = Math.round(col.scrollTop / ROW_H);
+        var max = col.querySelectorAll('.pitem').length - 1;
+        var i = Math.max(0, Math.min(idx, max));
+        col.scrollTo ? col.scrollTo({ top: i * ROW_H, behavior: 'smooth' })
+                     : (col.scrollTop = i * ROW_H);
+        _hi(col);
+        if (onEnd) onEnd(i);
+      }, 350);
+    }, { passive: true });
+  }
+
+  function _syncS(b, m, y) {
+    _sBrand = b; _sModel = m; _sYear = y;
+    if (window.S) { window.S.brand = b; window.S.model = m; window.S.year = y; }
+  }
+
+  function initFallback() {
+    var brands = typeof BRANDS !== 'undefined' ? BRANDS : [];
+    var years  = typeof YEARS  !== 'undefined' ? YEARS  : [];
+    if (!brands.length) return;
+
+    var bc = document.getElementById('c-brand');
+    var mc = document.getElementById('c-model');
+    var yc = document.getElementById('c-year');
+    if (!bc || !mc || !yc) return;
+
+    _fill(bc, brands,          function(b) { return b.name || String(b); });
+    _fill(mc, _getModels(0),   function(m) { return String(m); });
+    _fill(yc, years,           function(y) { return String(y); });
+
+    _snap(bc, function(i) {
+      _syncS(i, 0, 0);
+      _fill(mc, _getModels(i), function(m) { return String(m); });
+      _fill(yc, years,         function(y) { return String(y); });
+    });
+    _snap(mc, function(i) { _syncS(_sBrand, i, 0); });
+    _snap(yc, function(i) { _syncS(_sBrand, _sModel, i); });
+
+    /* Assurer que handleSearch() trouve la bonne marque/modèle/année */
+    if (!window.S) window.S = { brand:0, model:0, year:0, cart:[], vehicle:null };
+
+    /* Si handleSearch n'existe pas (app.js total failure), faire une version basique */
+    if (typeof handleSearch !== 'function') {
+      window.handleSearch = function() {
+        var b = (brands[_sBrand] || brands[0]);
+        var mods = _getModels(_sBrand);
+        var m = mods[_sModel] || '';
+        var y = years[_sYear];
+        if (window.S) {
+          window.S.brand = _sBrand; window.S.model = _sModel; window.S.year = _sYear;
+          window.S.vehicle = { brand: b.name||String(b), model: String(m), year: String(y||'') };
+        }
+        if (typeof openProducts === 'function') openProducts();
+      };
+    }
+  }
+
   document.addEventListener('DOMContentLoaded', function() {
-    fillPicker();
-    /* Garde-fou : si app.js vide le picker sans le remplir, on le refait */
-    setTimeout(fillPicker, 500);
-    setTimeout(fillPicker, 1500);
+    /* app.js DOMContentLoaded se déclenche EN PREMIER (il est enregistré avant).
+       Donc window._pickerReady est déjà défini ici si app.js a réussi. */
+    if (window._pickerReady) return; /* app.js OK — ne pas doubler */
+    initFallback();
+    /* Garde-fou si le DOM n'est pas encore rendu */
+    setTimeout(function() {
+      if (window._pickerReady) return;
+      var bc = document.getElementById('c-brand');
+      if (bc && !bc.querySelectorAll('.pitem').length) initFallback();
+    }, 400);
   });
 })();
 </script>
