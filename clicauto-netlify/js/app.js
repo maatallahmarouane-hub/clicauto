@@ -464,10 +464,9 @@ function _pickerFill() {
   const yearCol  = document.getElementById('c-year');
   if (!brandCol || !modelCol || !yearCol) return;
 
-  // Toujours utiliser la liste complète BRANDS — le picker admin Firebase
-  // ne remplace plus la liste client (cause : picker vide sur iOS Safari)
-  _PD = null;
-  _useAdminPicker = false;
+  // Essai avec les véhicules admin Firebase (chargés si applyData a déjà tourné)
+  try { _PD = _buildPickerData(); } catch(e) { _PD = null; }
+  _useAdminPicker = !!(_PD && _PD.length >= 2);
 
   const _dedup = bIdx => {
     const seen = new Set(); const out = [];
@@ -478,21 +477,27 @@ function _pickerFill() {
     });
     return out;
   };
-  _pickerGetBrands = ()           => BRANDS;
-  _pickerGetModels = bIdx         => _dedup(bIdx);
-  _pickerGetYears  = (bIdx, mIdx) => YEARS;
+
+  if (_useAdminPicker) {
+    _pickerGetBrands = ()           => _PD.map(b => b.name);
+    _pickerGetModels = bIdx         => (_PD[bIdx] || _PD[0]).models.map(m => m.shortName);
+    _pickerGetYears  = (bIdx, mIdx) => _pdYears(bIdx, mIdx);
+  } else {
+    _pickerGetBrands = ()           => BRANDS;
+    _pickerGetModels = bIdx         => _dedup(bIdx);
+    _pickerGetYears  = (bIdx, mIdx) => YEARS;
+  }
 
   try {
-    _buildItems(brandCol, BRANDS, true);
-    _buildItems(modelCol, _dedup(0), false);
-    _buildItems(yearCol,  YEARS, false);
+    _buildItems(brandCol, _pickerGetBrands(), true);
+    _buildItems(modelCol, _pickerGetModels(0), false);
+    _buildItems(yearCol,  _pickerGetYears(0, 0), false);
   } catch(e) {
     console.error('[picker]', e);
   }
   S.brand = 0; S.model = 0; S.year = 0;
 
-  // Double rAF : attend 2 frames pour que iOS Safari termine le layout
-  // avant de fixer scrollTop — sinon le snap CSS réinitialise à une mauvaise position
+  // Double rAF puis reset scrollTop (iOS Safari termine son layout entre-temps)
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {
       brandCol.scrollTop = 0;
@@ -503,6 +508,11 @@ function _pickerFill() {
       _syncHighlight(yearCol);
     });
   });
+
+  // Animation roulette — fonctionne maintenant que scroll-snap est supprimé du CSS
+  _colSpinIntro(brandCol, 1800, 300);
+  _colSpinIntro(modelCol, 1800, 400);
+  _colSpinIntro(yearCol,  1800, 500);
 }
 
 function initPicker() {

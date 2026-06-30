@@ -796,7 +796,7 @@
 
 <script src="js/data.js?v=14"></script>
 <script src="js/products.js?v=11"></script>
-<script src="js/app.js?v=35"></script>
+<script src="js/app.js?v=36"></script>
 <script>
 /* ══════════════════════════════════════════════════════
    PICKER FALLBACK — actif seulement si app.js échoue
@@ -814,7 +814,7 @@
       var d = Math.abs(i - center), sel = d < 0.55;
       el.classList.toggle('is-sel',  sel);
       el.classList.toggle('is-near', !sel && d < 1.55);
-      el.style.opacity = Math.max(0.08, 1 - d * 0.52).toFixed(2);
+      el.style.opacity = Math.max(0.08, 1 - d * 0.52);
     });
   }
 
@@ -824,14 +824,16 @@
     inner.innerHTML = '';
     items.forEach(function(item, i) {
       var d = document.createElement('div');
-      d.className = 'pitem'; d.dataset.i = i;
+      /* Appliquer l'effet visuel immédiatement (classe + opacité inline) */
+      d.className = 'pitem' + (i===0?' is-sel':i===1?' is-near':'');
+      d.style.opacity = i===0?'1':i===1?'0.48':'0.08';
+      d.dataset.i = i;
       var s = document.createElement('span');
       s.className = 'pitem-label';
       s.textContent = label(item);
       d.appendChild(s); inner.appendChild(d);
     });
     col.scrollTop = 0;
-    requestAnimationFrame(function() { _hi(col); });
   }
 
   function _dedup(models) {
@@ -994,6 +996,8 @@
     window.FIREBASE_DATA.products = prods;
     window.FIREBASE_DATA.vehicles = vehs;
     if(typeof window._reloadProducts==='function') window._reloadProducts();
+    /* Rafraîchir le picker avec les véhicules admin si disponibles */
+    if(typeof window._pickerFill==='function') window._pickerFill();
     var el=document.createElement('div');
     el.style.cssText='position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:'+(prods.length?'#22c55e':'#f59e0b')+';color:#fff;padding:8px 18px;border-radius:20px;font-size:13px;font-weight:600;z-index:9999;pointer-events:none';
     el.textContent=prods.length?('☁️ '+prods.length+' produits chargés'):'⚠️ Firestore vide';
