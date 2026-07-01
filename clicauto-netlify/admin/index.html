@@ -6400,6 +6400,8 @@ function runAdminSearch(q) {
 initDefaultLogos();
 renderVehicles();
 renderAll();
+// Le premier onglet actif est "vehicles" → le FAB doit ouvrir le popup véhicule
+document.getElementById('fab').onclick = openVehPopup;
 
 // Optimisation silencieuse au démarrage (après 1,5s pour ne pas bloquer le rendu)
 setTimeout(async () => {
@@ -7148,10 +7150,35 @@ async function syncFromFirebase() {
     const n = await migrateLocalToFirestore();
     toast(n > 0 ? `✅ ${n} éléments envoyés vers Firebase` : '☁️ Aucune donnée locale à migrer');
   } else {
-    // Firestore a des données → écraser le localStorage
+    // Firestore a des données → fusionner avec localStorage (préserver les images locales)
     Object.keys(keys).forEach((col, i) => {
-      const data = results[i].docs.map(d => ({ id: d.id, ...d.data() }));
-      localStorage.setItem(keys[col], JSON.stringify(data));
+      const fbData = results[i].docs.map(d => ({ id: d.id, ...d.data() }));
+      const lsKey = keys[col];
+      if (col === 'products') {
+        const localData = (() => { try { return JSON.parse(localStorage.getItem(lsKey) || '[]'); } catch { return []; } })();
+        const localById = {};
+        localData.forEach(p => { localById[p.id] = p; });
+        const merged = fbData.map(fp => {
+          const lp = localById[fp.id];
+          if (!lp) return fp;
+          return { ...fp, img: lp.img || fp.img, imgs: (lp.imgs && lp.imgs.length) ? lp.imgs : (fp.imgs || []), imgData: lp.imgData || fp.imgData };
+        });
+        const fbIds = new Set(fbData.map(p => p.id));
+        const localOnly = localData.filter(p => !fbIds.has(p.id));
+        localStorage.setItem(lsKey, JSON.stringify([...localOnly, ...merged]));
+      } else if (col === 'vehicles') {
+        const localData = (() => { try { return JSON.parse(localStorage.getItem(lsKey) || '[]'); } catch { return []; } })();
+        const localById = {};
+        localData.forEach(v => { localById[v.id] = v; });
+        const merged = fbData.map(fv => {
+          const lv = localById[fv.id];
+          if (!lv) return fv;
+          return { ...fv, carPhoto: lv.carPhoto || fv.carPhoto };
+        });
+        localStorage.setItem(lsKey, JSON.stringify(merged));
+      } else {
+        localStorage.setItem(lsKey, JSON.stringify(fbData));
+      }
     });
     toast('☁️ Données synchronisées depuis Firebase');
   }
@@ -7186,8 +7213,16 @@ function startRealtimeSync() {
     if (typeof renderProducts === 'function') renderProducts();
   });
   onSnapshot(collection(db, 'vehicles'), snap => {
-    const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    localStorage.setItem('clicauto_vehicles', JSON.stringify(data));
+    const fbData = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    const localData = (() => { try { return JSON.parse(localStorage.getItem('clicauto_vehicles') || '[]'); } catch { return []; } })();
+    const localById = {};
+    localData.forEach(v => { localById[v.id] = v; });
+    const merged = fbData.map(fv => {
+      const lv = localById[fv.id];
+      if (!lv) return fv;
+      return { ...fv, carPhoto: lv.carPhoto || fv.carPhoto };
+    });
+    localStorage.setItem('clicauto_vehicles', JSON.stringify(merged));
     if (typeof renderVehicles === 'function') renderVehicles();
   });
   onSnapshot(collection(db, 'orders'), snap => {
