@@ -275,7 +275,11 @@ function _buildItems(colEl, items, isBrand) {
     div.className = 'pitem';
     div.dataset.i = i;
     const label = typeof item === 'number' ? item : (item.name || item);
-    if (isBrand && brandLogos[String(label).toLowerCase()]) {
+    const svgLogo = isBrand && typeof item === 'object' && item.logo ? item.logo : null;
+    if (svgLogo) {
+      const svgUrl = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgLogo);
+      div.innerHTML = `<img class="pitem-logo" src="${svgUrl}" alt="${label}">`;
+    } else if (isBrand && brandLogos[String(label).toLowerCase()]) {
       const src = brandLogos[String(label).toLowerCase()];
       div.innerHTML = `<img class="pitem-logo" src="${src.replace(/"/g,'&quot;')}" alt="${label}">`;
     } else {
@@ -468,7 +472,7 @@ function _pickerFill() {
 
   // Essai avec les véhicules admin Firebase (chargés si applyData a déjà tourné)
   try { _PD = _buildPickerData(); } catch(e) { _PD = null; }
-  _useAdminPicker = !!(_PD && _PD.length >= 2);
+  _useAdminPicker = !!(_PD && _PD.length >= 1);
 
   const _dedup = bIdx => {
     const seen = new Set(); const out = [];
@@ -481,7 +485,10 @@ function _pickerFill() {
   };
 
   if (_useAdminPicker) {
-    _pickerGetBrands = ()           => _PD.map(b => b.name);
+    _pickerGetBrands = () => _PD.map(b => {
+      const sb = BRANDS.find(x => x.name.toLowerCase() === b.name.toLowerCase());
+      return { name: b.name, logo: sb ? sb.logo : null };
+    });
     _pickerGetModels = bIdx         => (_PD[bIdx] || _PD[0]).models.map(m => m.shortName);
     _pickerGetYears  = (bIdx, mIdx) => _pdYears(bIdx, mIdx);
   } else {
