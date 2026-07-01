@@ -7021,9 +7021,11 @@ const auth = getAuth(app);
 /* ── Cloudinary CDN (25GB gratuit, zéro limite de bande passante) ── */
 const _CDN = { cloud: 'vfa0wb0f', preset: 'clicauto_upload' };
 async function _cdnUpload(dataUrl, publicId) {
-  if (!dataUrl || !dataUrl.startsWith('data:')) return dataUrl; // déjà une URL
+  if (!dataUrl || !dataUrl.startsWith('data:')) return dataUrl; // déjà une URL CDN
+  // Convertir data URL → Blob binaire (Cloudinary n'accepte pas les data URL en string)
+  const blob = await fetch(dataUrl).then(r => r.blob());
   const form = new FormData();
-  form.append('file', dataUrl);
+  form.append('file', blob, (publicId || 'upload') + '.jpg');
   form.append('upload_preset', _CDN.preset);
   form.append('folder', 'clicauto');
   if (publicId) form.append('public_id', publicId);
