@@ -7028,7 +7028,12 @@ async function _cdnUpload(dataUrl, publicId) {
   form.append('folder', 'clicauto');
   if (publicId) form.append('public_id', publicId);
   const res = await fetch(`https://api.cloudinary.com/v1_1/${_CDN.cloud}/image/upload`, { method: 'POST', body: form });
-  if (!res.ok) throw new Error('Cloudinary ' + res.status);
+  if (!res.ok) {
+    const errBody = await res.json().catch(() => ({}));
+    const msg = errBody.error?.message || ('Cloudinary erreur ' + res.status);
+    if (typeof toast === 'function') toast('⚠️ CDN: ' + msg.slice(0, 60));
+    throw new Error(msg);
+  }
   return (await res.json()).secure_url;
 }
 async function _cdnUploadProds(prods) {
@@ -7041,7 +7046,7 @@ async function _cdnUploadProds(prods) {
       try {
         const url = await _cdnUpload(b64, 'prod_' + p.id);
         out.img = url; out.imgData = null; out.imgs = [url];
-        console.info('[CDN] Image uploadée:', p.id);
+        if (typeof toast === 'function') toast('☁️ Image sauvegardée sur Cloudinary');
       } catch(e) { console.warn('[CDN] Échec upload image:', p.id, e.message); }
     }
     // Photo véhicule liée au produit
@@ -7081,6 +7086,7 @@ onAuthStateChanged(auth, user => {
   const overlay = document.getElementById('auth-overlay');
   if (user) {
     overlay.classList.add('hidden');
+    if (typeof toast === 'function') toast('🔥 Firebase connecté — sync en cours…');
     syncFromFirebase();
   } else {
     overlay.classList.remove('hidden');
@@ -7259,7 +7265,7 @@ window.saveProds = async function(prods) {
     _origSaveProds(slim);
     _updateStorageBar();
   }
-  if (!auth.currentUser) { console.warn('[Admin] saveProds ignoré: non connecté'); return; }
+  if (!auth.currentUser) { if (typeof toast === 'function') toast('⚠️ Connectez-vous pour sauvegarder sur Firebase'); return; }
   try {
     // 2. Upload base64 → Cloudinary CDN → URLs (tiny strings)
     const prodsWithUrls = await _cdnUploadProds(prods);
@@ -7271,8 +7277,8 @@ window.saveProds = async function(prods) {
     const snap = await getDocs(collection(db, 'products'));
     const ids  = new Set(prodsWithUrls.map(p => p.id));
     await Promise.all(snap.docs.filter(d => !ids.has(d.id)).map(d => deleteDoc(d.ref)));
-    console.info('[Admin] Produits synchés (Cloudinary + Firestore):', prodsWithUrls.length);
-  } catch(e) { console.error('[Admin] saveProds erreur:', e.message); }
+    if (typeof toast === 'function') toast('✅ Produits sauvegardés sur Firebase');
+  } catch(e) { if (typeof toast === 'function') toast('❌ Firebase erreur: ' + e.message.slice(0,50)); console.error('[Admin] saveProds erreur:', e.message); }
 };
 
 /* ── Patch saveVehicles → Cloudinary + Firestore ── */
@@ -7281,20 +7287,24 @@ const _origSaveVehs = window.saveVehicles;
 window.saveVehicles = async function(vehs) {
   localStorage.setItem(_KEY_VEHS, JSON.stringify(vehs));
   if (_origSaveVehs) _origSaveVehs(vehs);
-  if (!auth.currentUser) { console.warn('[Admin] saveVehicles ignoré: non connecté'); return; }
+  if (!auth.currentUser) { return; }
   try {
     // Upload photos véhicules vers Cloudinary
     const vehsWithUrls = await Promise.all(vehs.map(async v => {
       if (!v.carPhoto || !v.carPhoto.startsWith('data:')) return v;
-      try { return { ...v, carPhoto: await _cdnUpload(v.carPhoto, 'veh_' + v.id) }; }
+      try {
+        const url = await _cdnUpload(v.carPhoto, 'veh_' + v.id);
+        if (typeof toast === 'function') toast('☁️ Photo véhicule sauvegardée sur CDN');
+        return { ...v, carPhoto: url };
+      }
       catch(e) { console.warn('[CDN] Véhicule photo:', v.id, e.message); return v; }
     }));
     await Promise.all(vehsWithUrls.map(v => setDoc(doc(db, 'vehicles', v.id), fsClean(v))));
     const snap = await getDocs(collection(db, 'vehicles'));
     const ids  = new Set(vehsWithUrls.map(v => v.id));
     await Promise.all(snap.docs.filter(d => !ids.has(d.id)).map(d => deleteDoc(d.ref)));
-    console.info('[Admin] Véhicules Firestore synchés:', vehs.length);
-  } catch(e) { console.error('[Admin] saveVehicles Firestore erreur:', e.message); }
+    if (typeof toast === 'function') toast('✅ Véhicules sauvegardés sur Firebase');
+  } catch(e) { if (typeof toast === 'function') toast('❌ Firebase erreur véhicules: ' + e.message.slice(0,40)); console.error('[Admin] saveVehicles Firestore erreur:', e.message); }
 };
 
 /* ── Patch saveOrders → Firestore ── */
