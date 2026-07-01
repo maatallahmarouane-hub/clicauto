@@ -3854,9 +3854,9 @@ function onVehPhotoChosen(e) {
 }
 
 function saveNewVehicle() {
-  try { _doSaveVehicle(); } catch(e) { console.error(e); toast('❌ ' + (e.message || 'Erreur inconnue')); }
+  _doSaveVehicle().catch(e => { console.error(e); toast('❌ ' + (e.message || 'Erreur inconnue')); });
 }
-function _doSaveVehicle() {
+async function _doSaveVehicle() {
   const brand = document.getElementById('vp-brand').value.trim();
   const model = document.getElementById('vp-model').value.trim();
   const years = document.getElementById('vp-year').value.trim();
@@ -3869,16 +3869,22 @@ function _doSaveVehicle() {
                   (_vpEditKey ? _allVehs0.find(v => ((v.brand||'')+'|'+(v.model||'')).toLowerCase() === _vpEditKey) : null);
   const entry  = { id: (_existV && _existV.id) || Date.now().toString(36) + Math.random().toString(36).slice(2), brand, model, years, carPhoto: _vpPhoto || '' };
 
+  const _vehSaveBtn = document.querySelector('.vp-save');
+  if (_vehSaveBtn) { _vehSaveBtn.disabled = true; _vehSaveBtn.textContent = '⏳ Sauvegarde…'; }
+
+  try {
   // ── Mode duplication ──────────────────────────────────────────
   if (_vpDuplicateFrom) {
     if (newKey === _vpDuplicateFrom) {
-      toast('⚠️ Changez le modèle pour créer un doublon distinct'); return;
+      toast('⚠️ Changez le modèle pour créer un doublon distinct');
+      if (_vehSaveBtn) { _vehSaveBtn.disabled = false; _vehSaveBtn.textContent = 'Sauvegarder'; }
+      return;
     }
     // Enregistre le nouveau véhicule
     const vehs = getVehicles();
     const eIdx = vehs.findIndex(v => ((v.brand||'')+'|'+(v.model||'')).toLowerCase() === newKey);
     if (eIdx >= 0) vehs[eIdx] = entry; else vehs.push(entry);
-    saveVehicles(vehs);
+    await saveVehicles(vehs);
 
     // Copie les produits source vers le nouveau véhicule
     const srcProds = getProds().filter(p =>
@@ -3892,7 +3898,7 @@ function _doSaveVehicle() {
         years: years || p.years,
         carPhoto: _vpPhoto || p.carPhoto
       }));
-      saveProds([...getProds(), ...newProds]);
+      await saveProds([...getProds(), ...newProds]);
     }
 
     closeVehPopup();
@@ -3909,7 +3915,7 @@ function _doSaveVehicle() {
   }
   const idx = vehs.findIndex(v => ((v.brand||'')+'|'+(v.model||'')).toLowerCase() === newKey);
   if (idx >= 0) vehs[idx] = entry; else vehs.push(entry);
-  saveVehicles(vehs);
+  await saveVehicles(vehs);
 
   // Propage carPhoto et years aux produits du véhicule
   if (_vpPhoto || years) {
@@ -3923,12 +3929,14 @@ function _doSaveVehicle() {
         carPhoto: _vpPhoto || p.carPhoto
       };
     });
-    saveProds(prods);
+    await saveProds(prods);
   }
 
   closeVehPopup();
   renderAll();
-  toast('✅ Véhicule enregistré');
+  } finally {
+    if (_vehSaveBtn) { _vehSaveBtn.disabled = false; _vehSaveBtn.textContent = 'Sauvegarder'; }
+  }
 }
 
 function _vehCardHtml(v) {
@@ -5026,7 +5034,7 @@ function clearImg(){
 /* ═══════════════════════════════════════════════════════
    SAVE PRODUCT
 ═══════════════════════════════════════════════════════ */
-function saveProduct() {
+async function saveProduct() {
   const name  = document.getElementById('f-name').value.trim();
   const price = parseFloat(document.getElementById('f-price').value)||0;
   const stock = parseInt(document.getElementById('f-stock').value)||0;
@@ -5056,7 +5064,6 @@ function saveProduct() {
       imgs:imgs.length?imgs:prods[idx].imgs,_cat:_form.cat,
       carPhoto:_form.carPhoto||prods[idx].carPhoto||null,
       genId:_form.genId||prods[idx].genId||null};
-    toast('✅ Produit mis à jour');
   } else {
     // CREATE
     const id='custom-'+Date.now()+'-'+Math.random().toString(36).slice(2,6);
@@ -5088,16 +5095,18 @@ function saveProduct() {
           _cat:_form.cat, _custom:true, _added:Date.now()+1,
           carPhoto:_form.carPhoto||null, genId:_form.genId||null,
           pairId, _mirrorPhoto: _isMirrorPair()});
-        toast('✅ Paire ajoutée — '+name+' + '+pairName);
-      } else {
-        toast('✅ Produit ajouté');
-      }
-    } else {
-      toast('✅ Produit ajouté');
+      } else { /* pas de paire opposée */ }
     }
   }
 
-  saveProds(prods);
+  // Attendre la fin du save Firestore avant de fermer (évite la perte de photo sur refresh rapide)
+  const _saveBtn = document.getElementById('btn-save-main');
+  if (_saveBtn) { _saveBtn.disabled = true; _saveBtn.textContent = '⏳ Sauvegarde…'; }
+  try {
+  await saveProds(prods);
+  } finally {
+    if (_saveBtn) { _saveBtn.disabled = false; _saveBtn.textContent = 'Sauvegarder'; }
+  }
   closeForm();
   renderAll();
 }
