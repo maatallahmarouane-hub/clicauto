@@ -6482,14 +6482,15 @@ setTimeout(async () => {
 
   const vehs = getVehicles();
   for (const v of vehs) await opt(v, 'carPhoto', 400, true, false);
-  try { saveVehicles(vehs); } catch {}
+  if (n > 0) try { saveVehicles(vehs); } catch {}
 
   const prods = getProds();
+  const _nBeforeProds = n;
   for (const p of prods) {
     await opt(p, 'carPhoto', 480, true, false);
     await opt(p, 'imgData',  600, true, false);
   }
-  try { saveProds(prods); } catch {}
+  if (n > _nBeforeProds) try { saveProds(prods); } catch {}
 
   _updateStorageBar();
   if (btn) { btn.disabled = false; btn.textContent = '⚡ Optimiser'; }
@@ -7310,8 +7311,8 @@ window.saveProds = async function(prods) {
     if (_origSaveProds) _origSaveProds(ready);
     // 4. Mettre à jour window._fsProds immédiatement (sans attendre onSnapshot)
     window._fsProds = ready;
-    // 5. Firestore : upsert seulement — PAS de suppression (la suppression est explicite via _deleteProductById)
-    await Promise.all(ready.map(p => setDoc(doc(db, 'products', p.id), p)));
+    // 5. Firestore : merge pour ne jamais effacer un champ img/imgs existant
+    await Promise.all(ready.map(p => setDoc(doc(db, 'products', p.id), p, { merge: true })));
     if (typeof toast === 'function') toast('✅ Produits sauvegardés');
   } catch(e) { if (typeof toast === 'function') toast('❌ Erreur: ' + e.message.slice(0,50)); console.error('[Admin] saveProds:', e); }
 };
@@ -7340,8 +7341,8 @@ window.saveVehicles = async function(vehs) {
       return fsClean(o);
     }));
     if (_origSaveVehs) { try { _origSaveVehs(ready); } catch(e) {} }
-    // Firestore : upsert seulement — PAS de suppression (la suppression est explicite via _deleteVehicleById)
-    await Promise.all(ready.map(v => setDoc(doc(db, 'vehicles', v.id), v)));
+    // Firestore : merge pour ne jamais effacer carPhoto existant
+    await Promise.all(ready.map(v => setDoc(doc(db, 'vehicles', v.id), v, { merge: true })));
     if (typeof toast === 'function') toast('✅ Véhicules sauvegardés');
   } catch(e) { if (typeof toast === 'function') toast('❌ Erreur véhicules: ' + e.message.slice(0,40)); console.error('[Admin] saveVehicles:', e); }
 };
@@ -7378,8 +7379,8 @@ window._saveProd = async function(prod) {
   const idx = cur.findIndex(p => p.id === clean.id);
   window._fsProds = idx >= 0 ? cur.map((p, i) => i === idx ? clean : p) : [clean, ...cur];
   try { localStorage.setItem('clicauto_custom_products', JSON.stringify(window._fsProds)); } catch(e) {}
-  // Firestore : seulement CE produit
-  await setDoc(doc(db, 'products', clean.id), clean);
+  // Firestore : merge pour ne jamais effacer img existant si la photo est absente du payload
+  await setDoc(doc(db, 'products', clean.id), clean, { merge: true });
   return clean;
 };
 
