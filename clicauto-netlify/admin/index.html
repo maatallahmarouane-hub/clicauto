@@ -7095,27 +7095,11 @@ window.doLogout = async function() {
 
 /* ── Gestion état auth ── */
 window._auth = auth; // exposé pour les fonctions sync
-/* ── Nettoyage localStorage : supprime tous les base64 au démarrage ── */
+/* ── Nettoyage localStorage : libère de l'espace si quota atteint ── */
 function _purgeBase64FromStorage() {
-  try {
-    const vehs = JSON.parse(localStorage.getItem('clicauto_vehicles') || '[]');
-    const cleaned = vehs.map(v => ({
-      ...v,
-      carPhoto: (v.carPhoto && v.carPhoto.startsWith('data:')) ? '' : (v.carPhoto || '')
-    }));
-    localStorage.setItem('clicauto_vehicles', JSON.stringify(cleaned));
-  } catch(e) { /* ignore */ }
-  try {
-    const prods = JSON.parse(localStorage.getItem('clicauto_custom_products') || '[]');
-    const cleaned = prods.map(p => ({
-      ...p,
-      img:     (p.img     && p.img.startsWith('data:'))     ? '' : (p.img     || ''),
-      imgData: (p.imgData && p.imgData.startsWith('data:')) ? '' : (p.imgData || ''),
-      imgs:    (p.imgs || []).map(u => (u && u.startsWith('data:')) ? '' : u).filter(Boolean),
-      carPhoto:(p.carPhoto && p.carPhoto.startsWith('data:')) ? '' : (p.carPhoto || '')
-    }));
-    localStorage.setItem('clicauto_custom_products', JSON.stringify(cleaned));
-  } catch(e) { /* ignore */ }
+  // Ne supprime plus les base64 — Firestore les accepte maintenant (fsClean désactivé).
+  // On essaie juste de compresser si le quota est presque plein.
+  // La sync Firebase apportera les CDN URLs et remplacera les base64 automatiquement.
 }
 
 onAuthStateChanged(auth, user => {
@@ -7139,12 +7123,13 @@ onAuthStateChanged(auth, user => {
 
 /* ── Supprime les données base64 (photos) avant envoi Firestore ── */
 function fsClean(item) {
+  // Only remove null/undefined — Firestore rejects them.
+  // Base64 strings are intentionally kept: if Cloudinary upload failed,
+  // the photo survives in Firestore rather than being silently deleted.
+  // Firestore 1MB document limit is safe given our 1200px JPEG compression.
   const out = {};
   for (const [k, v] of Object.entries(item)) {
-    if (typeof v === 'string' && v.startsWith('data:')) continue;
     if (v === null || v === undefined) continue;
-    // Strip base64 from arrays too (imgs, etc.)
-    if (Array.isArray(v)) { out[k] = v.filter(u => typeof u !== 'string' || !u.startsWith('data:')); continue; }
     out[k] = v;
   }
   return out;
@@ -7241,45 +7226,24 @@ async function syncFromFirebase() {
 /* ── Sync temps réel (pendant que l'admin est ouvert) ── */
 function startRealtimeSync() {
   onSnapshot(collection(db, 'products'), snap => {
+    // Firebase = source de vérité (contient CDN URL ou base64 conservé)
     const fbData = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    // Merge: Firebase is source of truth for metadata, local storage preserves images
     const localData = (() => { try { return JSON.parse(localStorage.getItem('clicauto_custom_products') || '[]'); } catch { return []; } })();
-    const localById = {};
-    localData.forEach(p => { localById[p.id] = p; });
-    const merged = fbData.map(fp => {
-      const lp = localById[fp.id];
-      if (!lp) return fp;
-      // Prefer CDN URL from Firebase over local base64 (CDN URL is smaller and permanent)
-      const bestImg = (fp.img && fp.img.startsWith('https://')) ? fp.img : (lp.img || fp.img);
-      const bestImgs = (fp.imgs && fp.imgs.some(u => (u||'').startsWith('https://'))) ? fp.imgs : ((lp.imgs && lp.imgs.length) ? lp.imgs : (fp.imgs || []));
-      return { ...fp,
-        img: bestImg,
-        imgs: bestImgs,
-        imgData: (bestImg && bestImg.startsWith('https://')) ? null : (lp.imgData || fp.imgData)
-      };
-    });
-    // Keep locally-added products not yet confirmed in Firebase
+    // Garder les produits locaux pas encore confirmés dans Firebase
     const fbIds = new Set(fbData.map(p => p.id));
     const localOnly = localData.filter(p => !fbIds.has(p.id));
-    localStorage.setItem('clicauto_custom_products', JSON.stringify([...localOnly, ...merged]));
+    localStorage.setItem('clicauto_custom_products', JSON.stringify([...localOnly, ...fbData]));
     if (typeof renderStock === 'function') renderStock();
     if (typeof renderProducts === 'function') renderProducts();
   });
   onSnapshot(collection(db, 'vehicles'), snap => {
+    // Firebase = source de vérité
     const fbData = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     const localData = (() => { try { return JSON.parse(localStorage.getItem('clicauto_vehicles') || '[]'); } catch { return []; } })();
-    const localById = {};
-    localData.forEach(v => { if (v.id) localById[v.id] = v; });
-    const merged = fbData.map(fv => {
-      const lv = localById[fv.id];
-      if (!lv) return fv;
-      const bestPhoto = (fv.carPhoto && fv.carPhoto.startsWith('https://')) ? fv.carPhoto : (lv.carPhoto || fv.carPhoto);
-      return { ...fv, carPhoto: bestPhoto };
-    });
-    // Keep locally-added vehicles not yet confirmed in Firebase
+    // Garder les véhicules locaux pas encore confirmés dans Firebase
     const fbVehIds = new Set(fbData.map(v => v.id));
-    const localOnlyVehs = localData.filter(v => !fbVehIds.has(v.id));
-    localStorage.setItem('clicauto_vehicles', JSON.stringify([...localOnlyVehs, ...merged]));
+    const localOnlyVehs = localData.filter(v => v.id && !fbVehIds.has(v.id));
+    localStorage.setItem('clicauto_vehicles', JSON.stringify([...localOnlyVehs, ...fbData]));
     if (typeof renderVehicles === 'function') renderVehicles();
   });
   onSnapshot(collection(db, 'orders'), snap => {
@@ -7336,21 +7300,17 @@ window.saveProds = async function(prods) {
 const _KEY_VEHS = 'clicauto_vehicles';
 const _origSaveVehs = window.saveVehicles;
 window.saveVehicles = async function(vehs) {
-  // Migrate any vehicle without an id (created before fix) so Firestore write never throws
+  // Ensure every vehicle has an id
   const vehsWithIds = vehs.map(v => v.id ? v : {
     ...v,
     id: ((v.brand||'') + '_' + (v.model||'')).toLowerCase().replace(/[^a-z0-9]/g, '_') || Date.now().toString(36)
   });
-  // Strip base64 from localStorage immediately — CDN URLs will replace them after upload
-  const vehsSlim = vehsWithIds.map(v => ({
-    ...v,
-    carPhoto: (v.carPhoto && v.carPhoto.startsWith('data:')) ? '__uploading__' : (v.carPhoto || '')
-  }));
-  try { localStorage.setItem(_KEY_VEHS, JSON.stringify(vehsSlim)); } catch(e) { /* quota: ignore, Firebase is source of truth */ }
-  if (_origSaveVehs) { try { _origSaveVehs(vehsSlim); } catch(e) { /* quota: ignore */ } }
+  // Save to localStorage with base64 intact — no placeholder, no loss
+  try { localStorage.setItem(_KEY_VEHS, JSON.stringify(vehsWithIds)); } catch(e) { /* quota */ }
+  if (_origSaveVehs) { try { _origSaveVehs(vehsWithIds); } catch(e) { /* quota */ } }
   if (!auth.currentUser) { if (typeof toast === 'function') toast('⚠️ Connectez-vous pour sauvegarder'); return; }
   try {
-    // Upload photos véhicules vers Cloudinary
+    // Upload photos véhicules vers Cloudinary (CDN URL si succès, base64 conservé si échec)
     const vehsWithUrls = await Promise.all(vehsWithIds.map(async v => {
       if (!v.carPhoto || !v.carPhoto.startsWith('data:')) return v;
       const cdnKey = 'veh_' + v.id.replace(/[^a-z0-9]/gi, '_');
@@ -7359,13 +7319,13 @@ window.saveVehicles = async function(vehs) {
         if (typeof toast === 'function') toast('☁️ Photo véhicule sauvegardée sur CDN');
         return { ...v, carPhoto: url };
       }
-      catch(e) { console.warn('[CDN] Véhicule photo:', v.id, e.message); return { ...v, carPhoto: '' }; }
+      catch(e) { console.warn('[CDN] Véhicule photo:', v.id, e.message); return v; /* conserve base64 */ }
     }));
-    // Replace __uploading__ placeholders with final CDN URLs in localStorage
+    // Mettre à jour localStorage avec les URLs CDN
     try {
       localStorage.setItem(_KEY_VEHS, JSON.stringify(vehsWithUrls));
       if (typeof _updateStorageBar === 'function') _updateStorageBar();
-    } catch(e) { /* quota: Firebase has the data anyway */ }
+    } catch(e) { /* quota */ }
     await Promise.all(vehsWithUrls.map(v => setDoc(doc(db, 'vehicles', v.id), fsClean(v))));
     const snap = await getDocs(collection(db, 'vehicles'));
     const ids  = new Set(vehsWithUrls.map(v => v.id));
