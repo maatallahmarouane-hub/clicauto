@@ -3830,12 +3830,19 @@ function onVehPhotoChosen(e) {
       octx.fillStyle='#ffffff'; octx.fillRect(0,0,dw,dh);
       octx.drawImage(cv, minX,minY,fw,fh, Math.round((dw-sw)/2),Math.round((dh-sh)/2), sw,sh);
 
-      _vpPhoto = out.toDataURL('image/jpeg', 0.88);
+      const _b64veh = out.toDataURL('image/jpeg', 0.88);
+      _vpPhoto = _b64veh; // base64 temporaire pour prévisualisation
       const el = document.getElementById('vp-img');
-      el.src = _vpPhoto; el.style.display = '';
+      el.src = _b64veh; el.style.display = '';
       document.getElementById('vp-photo-ico').style.display = 'none';
       document.getElementById('vp-photo-lbl').style.display = 'none';
-      _analyzeCarPhoto(_vpPhoto);
+      _analyzeCarPhoto(_b64veh);
+      // Upload CDN immédiatement en arrière-plan
+      if (window._cdnUpload) {
+        window._cdnUpload(_b64veh, 'veh_tmp_' + Date.now())
+          .then(url => { _vpPhoto = url; })
+          .catch(() => { /* base64 conservé si CDN indisponible */ });
+      }
     };
     img.src = ev.target.result;
   };
@@ -4972,6 +4979,12 @@ function processFile(file) {
 
       const src = out.toDataURL('image/jpeg', 0.88);
       _form.imgData=src; document.getElementById('f-url').value=''; setImgPreview(src);
+      // Upload CDN immédiatement en arrière-plan
+      if (window._cdnUpload) {
+        window._cdnUpload(src, 'prod_tmp_' + Date.now())
+          .then(url => { _form.imgData=url; document.getElementById('f-url').value=url; })
+          .catch(() => { /* base64 conservé si CDN indisponible */ });
+      }
     };
     img.src = e.target.result;
   };
@@ -7026,8 +7039,7 @@ const auth = getAuth(app);
 /* ── Cloudinary CDN (25GB gratuit, zéro limite de bande passante) ── */
 const _CDN = { cloud: 'vfa0wb0f', preset: 'clicauto_upload' };
 async function _cdnUpload(dataUrl, publicId) {
-  if (!dataUrl || !dataUrl.startsWith('data:')) return dataUrl; // déjà une URL CDN
-  // Convertir data URL → Blob binaire (Cloudinary n'accepte pas les data URL en string)
+  if (!dataUrl || !dataUrl.startsWith('data:')) return dataUrl; // déjà une URL
   const blob = await fetch(dataUrl).then(r => r.blob());
   const form = new FormData();
   form.append('file', blob, (publicId || 'upload') + '.jpg');
@@ -7036,40 +7048,13 @@ async function _cdnUpload(dataUrl, publicId) {
   if (publicId) form.append('public_id', publicId);
   const res = await fetch(`https://api.cloudinary.com/v1_1/${_CDN.cloud}/image/upload`, { method: 'POST', body: form });
   if (!res.ok) {
-    const errBody = await res.json().catch(() => ({}));
-    const msg = errBody.error?.message || ('Cloudinary erreur ' + res.status);
-    if (typeof toast === 'function') toast('⚠️ CDN: ' + msg.slice(0, 60));
+    const msg = ((await res.json().catch(() => ({}))).error?.message) || ('CDN erreur ' + res.status);
     throw new Error(msg);
   }
   return (await res.json()).secure_url;
 }
-async function _cdnUploadProds(prods) {
-  return Promise.all(prods.map(async p => {
-    const out = { ...p };
-    // Image principale : cherche base64 dans imgData, img, ou imgs[0]
-    const b64 = (out.imgData && out.imgData.startsWith('data:')) ? out.imgData
-              : (out.img    && out.img.startsWith('data:'))    ? out.img
-              : (out.imgs   && out.imgs[0] && out.imgs[0].startsWith('data:')) ? out.imgs[0] : null;
-    if (b64) {
-      try {
-        const url = await _cdnUpload(b64, 'prod_' + p.id);
-        out.img = url; out.imgData = null; out.imgs = [url];
-        if (typeof toast === 'function') toast('☁️ Image sauvegardée sur Cloudinary');
-      } catch(e) { console.warn('[CDN] Échec upload image:', p.id, e.message); }
-    }
-    // Synchroniser img depuis imgs si img est vide (cohérence carte/popup)
-    if (!out.img || out.img.startsWith('data:')) {
-      const cdnImg = (out.imgs || []).find(u => u && u.startsWith('https://'));
-      if (cdnImg) { out.img = cdnImg; out.imgData = null; }
-    }
-    // Photo véhicule liée au produit
-    if (out.carPhoto && out.carPhoto.startsWith('data:')) {
-      try { out.carPhoto = await _cdnUpload(out.carPhoto, 'car_' + p.id); }
-      catch(e) { console.warn('[CDN] Échec carPhoto:', p.id, e.message); }
-    }
-    return out;
-  }));
-}
+// Exposer pour les scripts non-module (photo pick en arrière-plan)
+window._cdnUpload = _cdnUpload;
 
 /* ── Login / Logout ── */
 window.doLogin = async function() {
@@ -7093,20 +7078,12 @@ window.doLogout = async function() {
   await signOut(auth);
 };
 
-/* ── Gestion état auth ── */
-window._auth = auth; // exposé pour les fonctions sync
-/* ── Nettoyage localStorage : libère de l'espace si quota atteint ── */
-function _purgeBase64FromStorage() {
-  // Ne supprime plus les base64 — Firestore les accepte maintenant (fsClean désactivé).
-  // On essaie juste de compresser si le quota est presque plein.
-  // La sync Firebase apportera les CDN URLs et remplacera les base64 automatiquement.
-}
+window._auth = auth;
 
 onAuthStateChanged(auth, user => {
   const overlay = document.getElementById('auth-overlay');
   if (user) {
     overlay.classList.add('hidden');
-    _purgeBase64FromStorage(); // libère le quota avant la sync
     if (typeof toast === 'function') toast('🔥 Firebase connecté — sync en cours…');
     syncFromFirebase();
   } else {
@@ -7121,16 +7098,11 @@ onAuthStateChanged(auth, user => {
   });
 });
 
-/* ── Supprime les données base64 (photos) avant envoi Firestore ── */
+// Retire null/undefined avant envoi Firestore
 function fsClean(item) {
-  // Only remove null/undefined — Firestore rejects them.
-  // Base64 strings are intentionally kept: if Cloudinary upload failed,
-  // the photo survives in Firestore rather than being silently deleted.
-  // Firestore 1MB document limit is safe given our 1200px JPEG compression.
   const out = {};
   for (const [k, v] of Object.entries(item)) {
-    if (v === null || v === undefined) continue;
-    out[k] = v;
+    if (v !== null && v !== undefined) out[k] = v;
   }
   return out;
 }
@@ -7169,48 +7141,25 @@ async function syncFromFirebase() {
     messages:     'clicauto_messages',
     fournisseurs: 'clicauto_fournisseurs'
   };
-  const results = await Promise.all(
-    Object.keys(keys).map(col => getDocs(collection(db, col)))
-  );
+  const cols = Object.keys(keys);
+  const results = await Promise.all(cols.map(col => getDocs(collection(db, col))));
   const totalDocs = results.reduce((n, r) => n + r.docs.length, 0);
 
   if (totalDocs === 0) {
-    // Firestore vide → migrer les données locales existantes
     toast('⬆️ Première sync : migration en cours…');
     const n = await migrateLocalToFirestore();
     toast(n > 0 ? `✅ ${n} éléments envoyés vers Firebase` : '☁️ Aucune donnée locale à migrer');
   } else {
-    // Firestore a des données → fusionner avec localStorage (préserver les images locales)
-    Object.keys(keys).forEach((col, i) => {
+    // Firebase = source de vérité
+    cols.forEach((col, i) => {
       const fbData = results[i].docs.map(d => ({ id: d.id, ...d.data() }));
       const lsKey = keys[col];
-      if (col === 'products') {
-        const localData = (() => { try { return JSON.parse(localStorage.getItem(lsKey) || '[]'); } catch { return []; } })();
-        const localById = {};
-        localData.forEach(p => { localById[p.id] = p; });
-        const merged = fbData.map(fp => {
-          const lp = localById[fp.id];
-          if (!lp) return fp;
-          const bestImg = (fp.img && fp.img.startsWith('https://')) ? fp.img : (lp.img || fp.img);
-          const bestImgs = (fp.imgs && fp.imgs.some(u => (u||'').startsWith('https://'))) ? fp.imgs : ((lp.imgs && lp.imgs.length) ? lp.imgs : (fp.imgs || []));
-          return { ...fp, img: bestImg, imgs: bestImgs, imgData: (bestImg && bestImg.startsWith('https://')) ? null : (lp.imgData || fp.imgData) };
-        });
-        const fbIds = new Set(fbData.map(p => p.id));
-        const localOnly = localData.filter(p => !fbIds.has(p.id));
-        localStorage.setItem(lsKey, JSON.stringify([...localOnly, ...merged]));
-      } else if (col === 'vehicles') {
-        const localData = (() => { try { return JSON.parse(localStorage.getItem(lsKey) || '[]'); } catch { return []; } })();
-        const localById = {};
-        localData.forEach(v => { if (v.id) localById[v.id] = v; });
-        const merged = fbData.map(fv => {
-          const lv = localById[fv.id];
-          if (!lv) return fv;
-          const bestPhoto = (fv.carPhoto && fv.carPhoto.startsWith('https://')) ? fv.carPhoto : (lv.carPhoto || fv.carPhoto);
-          return { ...fv, carPhoto: bestPhoto };
-        });
-        const fbVehIds = new Set(fbData.map(v => v.id));
-        const localOnlyVehs = localData.filter(v => !fbVehIds.has(v.id));
-        localStorage.setItem(lsKey, JSON.stringify([...localOnlyVehs, ...merged]));
+      // Conserver les éléments locaux pas encore confirmés dans Firebase
+      if (col === 'products' || col === 'vehicles') {
+        const local = (() => { try { return JSON.parse(localStorage.getItem(lsKey) || '[]'); } catch { return []; } })();
+        const fbIds = new Set(fbData.map(d => d.id));
+        const localOnly = local.filter(d => d.id && !fbIds.has(d.id));
+        localStorage.setItem(lsKey, JSON.stringify([...localOnly, ...fbData]));
       } else {
         localStorage.setItem(lsKey, JSON.stringify(fbData));
       }
@@ -7266,72 +7215,68 @@ function startRealtimeSync() {
 /* ── Patch saveProds → Cloudinary + Firestore ── */
 const _origSaveProds = window.saveProds;
 window.saveProds = async function(prods) {
-  // 1. Sauvegarde locale immédiate (avec base64 pour affichage offline)
-  let saved = _origSaveProds ? _origSaveProds(prods) : false;
-  if (!saved) {
-    // Stockage plein : compresser davantage et réessayer
-    const slim = [];
-    for (const p of prods) {
-      const cp = { ...p };
-      if (cp.imgData && cp.imgData.startsWith('data:')) { const c = await _recompressImg(cp.imgData, 300, false, true); if (c) cp.imgData = c; }
-      if (cp.img    && cp.img.startsWith('data:'))    { const c = await _recompressImg(cp.img,    300, false, true); if (c) cp.img    = c; }
-      slim.push(cp);
-    }
-    _origSaveProds(slim);
-    _updateStorageBar();
-  }
-  if (!auth.currentUser) { if (typeof toast === 'function') toast('⚠️ Connectez-vous pour sauvegarder sur Firebase'); return; }
+  // 1. Sauvegarde locale immédiate
+  if (_origSaveProds) _origSaveProds(prods);
+  if (!auth.currentUser) { if (typeof toast === 'function') toast('⚠️ Connectez-vous pour sauvegarder'); return; }
   try {
-    // 2. Upload base64 → Cloudinary CDN → URLs (tiny strings)
-    const prodsWithUrls = await _cdnUploadProds(prods);
-    // 3. Si des images ont été uploadées, mettre à jour localStorage avec les URLs
-    const hasNewUrls = prodsWithUrls.some((p, i) => p.img !== prods[i].img && (p.img || '').startsWith('https://'));
-    if (hasNewUrls && _origSaveProds) { _origSaveProds(prodsWithUrls); _updateStorageBar(); }
-    // 4. Sauvegarder dans Firestore (fsClean retire les base64 résiduelles)
-    await Promise.all(prodsWithUrls.map(p => setDoc(doc(db, 'products', p.id), fsClean(p))));
+    // 2. Si une photo est encore en base64 (upload CDN pas encore terminé), on réessaie
+    const ready = await Promise.all(prods.map(async p => {
+      const o = { ...p };
+      const b64 = (o.imgData?.startsWith('data:')) ? o.imgData
+                : (o.img?.startsWith('data:'))     ? o.img
+                : (o.imgs?.[0]?.startsWith('data:')) ? o.imgs[0] : null;
+      if (b64) {
+        try {
+          const url = await _cdnUpload(b64, 'prod_' + p.id);
+          o.img = url; o.imgData = null; o.imgs = [url];
+        } catch(e) { /* conserve base64 si CDN indisponible */ }
+      }
+      // img doit être cohérent avec imgs
+      if ((!o.img || o.img.startsWith('data:')) && o.imgs?.some(u => u?.startsWith('https://'))) {
+        o.img = o.imgs.find(u => u?.startsWith('https://'));
+      }
+      return fsClean(o);
+    }));
+    // 3. Mettre à jour localStorage avec les URLs finales
+    if (_origSaveProds) _origSaveProds(ready);
+    // 4. Firestore
+    await Promise.all(ready.map(p => setDoc(doc(db, 'products', p.id), p)));
     const snap = await getDocs(collection(db, 'products'));
-    const ids  = new Set(prodsWithUrls.map(p => p.id));
+    const ids  = new Set(ready.map(p => p.id));
     await Promise.all(snap.docs.filter(d => !ids.has(d.id)).map(d => deleteDoc(d.ref)));
-    if (typeof toast === 'function') toast('✅ Produits sauvegardés sur Firebase');
-  } catch(e) { if (typeof toast === 'function') toast('❌ Firebase erreur: ' + e.message.slice(0,50)); console.error('[Admin] saveProds erreur:', e.message); }
+    if (typeof toast === 'function') toast('✅ Produits sauvegardés');
+  } catch(e) { if (typeof toast === 'function') toast('❌ Erreur: ' + e.message.slice(0,50)); console.error('[Admin] saveProds:', e); }
 };
 
 /* ── Patch saveVehicles → Cloudinary + Firestore ── */
-const _KEY_VEHS = 'clicauto_vehicles';
 const _origSaveVehs = window.saveVehicles;
 window.saveVehicles = async function(vehs) {
-  // Ensure every vehicle has an id
-  const vehsWithIds = vehs.map(v => v.id ? v : {
-    ...v,
-    id: ((v.brand||'') + '_' + (v.model||'')).toLowerCase().replace(/[^a-z0-9]/g, '_') || Date.now().toString(36)
+  // S'assurer que chaque véhicule a un id
+  const list = vehs.map(v => v.id ? v : {
+    ...v, id: ((v.brand||'')+'_'+(v.model||'')).toLowerCase().replace(/[^a-z0-9]/g,'_') || Date.now().toString(36)
   });
-  // Save to localStorage with base64 intact — no placeholder, no loss
-  try { localStorage.setItem(_KEY_VEHS, JSON.stringify(vehsWithIds)); } catch(e) { /* quota */ }
-  if (_origSaveVehs) { try { _origSaveVehs(vehsWithIds); } catch(e) { /* quota */ } }
+  // 1. Sauvegarde locale immédiate
+  if (_origSaveVehs) { try { _origSaveVehs(list); } catch(e) {} }
   if (!auth.currentUser) { if (typeof toast === 'function') toast('⚠️ Connectez-vous pour sauvegarder'); return; }
   try {
-    // Upload photos véhicules vers Cloudinary (CDN URL si succès, base64 conservé si échec)
-    const vehsWithUrls = await Promise.all(vehsWithIds.map(async v => {
-      if (!v.carPhoto || !v.carPhoto.startsWith('data:')) return v;
-      const cdnKey = 'veh_' + v.id.replace(/[^a-z0-9]/gi, '_');
-      try {
-        const url = await _cdnUpload(v.carPhoto, cdnKey);
-        if (typeof toast === 'function') toast('☁️ Photo véhicule sauvegardée sur CDN');
-        return { ...v, carPhoto: url };
+    // 2. Si photo encore en base64 (upload CDN pas encore terminé), on réessaie
+    const ready = await Promise.all(list.map(async v => {
+      const o = { ...v };
+      if (o.carPhoto?.startsWith('data:')) {
+        try { o.carPhoto = await _cdnUpload(o.carPhoto, 'veh_' + v.id.replace(/[^a-z0-9]/gi,'_')); }
+        catch(e) { /* conserve base64 */ }
       }
-      catch(e) { console.warn('[CDN] Véhicule photo:', v.id, e.message); return v; /* conserve base64 */ }
+      return fsClean(o);
     }));
-    // Mettre à jour localStorage avec les URLs CDN
-    try {
-      localStorage.setItem(_KEY_VEHS, JSON.stringify(vehsWithUrls));
-      if (typeof _updateStorageBar === 'function') _updateStorageBar();
-    } catch(e) { /* quota */ }
-    await Promise.all(vehsWithUrls.map(v => setDoc(doc(db, 'vehicles', v.id), fsClean(v))));
+    // 3. Mettre à jour localStorage avec les URLs finales
+    if (_origSaveVehs) { try { _origSaveVehs(ready); } catch(e) {} }
+    // 4. Firestore
+    await Promise.all(ready.map(v => setDoc(doc(db, 'vehicles', v.id), v)));
     const snap = await getDocs(collection(db, 'vehicles'));
-    const ids  = new Set(vehsWithUrls.map(v => v.id));
+    const ids  = new Set(ready.map(v => v.id));
     await Promise.all(snap.docs.filter(d => !ids.has(d.id)).map(d => deleteDoc(d.ref)));
-    if (typeof toast === 'function') toast('✅ Véhicules sauvegardés sur Firebase');
-  } catch(e) { if (typeof toast === 'function') toast('❌ Firebase erreur véhicules: ' + e.message.slice(0,40)); console.error('[Admin] saveVehicles Firestore erreur:', e.message); }
+    if (typeof toast === 'function') toast('✅ Véhicules sauvegardés');
+  } catch(e) { if (typeof toast === 'function') toast('❌ Erreur véhicules: ' + e.message.slice(0,40)); console.error('[Admin] saveVehicles:', e); }
 };
 
 /* ── Patch saveOrders → Firestore ── */
