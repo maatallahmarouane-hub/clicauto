@@ -5786,7 +5786,7 @@ function confirmDel(id,name,type) {
   document.getElementById('confirm-title').textContent='Supprimer ?';
   document.getElementById('confirm-sub').textContent=`"${name}" sera définitivement supprimé.`;
   _confirmCb=()=>{
-    if(type==='prod'){ saveProds(getProds().filter(p=>p.id!==id)); if(window._fbDeleteProductImg)window._fbDeleteProductImg(id); renderAll(); toast('🗑 Produit supprimé'); }
+    if(type==='prod'){ saveProds(getProds().filter(p=>p.id!==id)); renderAll(); toast('🗑 Produit supprimé'); }
   };
   document.getElementById('confirm-yes').onclick=()=>{ _confirmCb?.(); closeConfirm(); };
   document.getElementById('confirm-overlay').classList.add('open');
@@ -6965,7 +6965,6 @@ function renderCompta() {
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getFirestore, collection, doc, getDocs, setDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-import { getStorage, ref as storageRef, uploadString, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
 
 const firebaseConfig = {
   apiKey:            "AIzaSyBirUSp9Kv7oBZ4m79H3YFNaUWydaPP-CQ",
@@ -6976,10 +6975,9 @@ const firebaseConfig = {
   appId:             "1:922080874368:web:09d413d5439067ec6dfb65"
 };
 
-const app     = initializeApp(firebaseConfig);
-const db      = getFirestore(app);
-const auth    = getAuth(app);
-const storage = getStorage(app);
+const app  = initializeApp(firebaseConfig);
+const db   = getFirestore(app);
+const auth = getAuth(app);
 
 /* ── Login / Logout ── */
 window.doLogin = async function() {
@@ -7026,7 +7024,9 @@ onAuthStateChanged(auth, user => {
 function fsClean(item) {
   const out = {};
   for (const [k, v] of Object.entries(item)) {
-    if (typeof v === 'string' && v.startsWith('data:')) continue; // trop grand pour Firestore
+    // Strip only images > 400KB (Firestore doc limit = 1MB; compressed images are ~15-40KB)
+    if (typeof v === 'string' && v.startsWith('data:') && v.length > 400000) continue;
+    if (v === null || v === undefined) continue;
     out[k] = v;
   }
   return out;
@@ -7136,37 +7136,7 @@ function startRealtimeSync() {
   });
 }
 
-/* ── Firebase Storage : upload images → URLs ── */
-async function _uploadProductImgs(prods) {
-  return Promise.all(prods.map(async p => {
-    const out = { ...p };
-    // Main product image
-    const base64 = (out.imgData && out.imgData.startsWith('data:')) ? out.imgData
-                 : (out.img    && out.img.startsWith('data:'))     ? out.img
-                 : null;
-    if (base64) {
-      try {
-        const ref = storageRef(storage, `products/${p.id}/main`);
-        await uploadString(ref, base64, 'data_url');
-        const url = await getDownloadURL(ref);
-        out.img    = url;
-        out.imgData = null;
-        out.imgs   = [url];
-      } catch(e) { console.warn('[Storage] upload main:', p.id, e.message); }
-    }
-    // Vehicle photo attached to product
-    if (out.carPhoto && out.carPhoto.startsWith('data:')) {
-      try {
-        const ref = storageRef(storage, `products/${p.id}/carPhoto`);
-        await uploadString(ref, out.carPhoto, 'data_url');
-        out.carPhoto = await getDownloadURL(ref);
-      } catch(e) { console.warn('[Storage] upload carPhoto:', p.id, e.message); }
-    }
-    return out;
-  }));
-}
-
-/* ── Patch saveProds → Storage + Firestore ── */
+/* ── Patch saveProds → Firestore (images incluses, compressées ≤ 400KB) ── */
 const _origSaveProds = window.saveProds;
 async function _compressProdsImgs(prods) {
   const out = [];
@@ -7185,7 +7155,6 @@ async function _compressProdsImgs(prods) {
   return out;
 }
 window.saveProds = async function(prods) {
-  // Save to localStorage immediately (with base64 for offline display)
   let saved = _origSaveProds ? _origSaveProds(prods) : false;
   if (!saved) {
     // Storage full: auto-compress and retry
@@ -7195,28 +7164,13 @@ window.saveProds = async function(prods) {
   }
   if (!auth.currentUser) { console.warn('[Admin] saveProds ignoré: non connecté'); return; }
   try {
-    // Upload base64 images to Firebase Storage → replace with URLs
-    const prodsWithUrls = await _uploadProductImgs(prods);
-    // Check if any images were uploaded (base64 → URL)
-    const hasNewUrls = prodsWithUrls.some((p, i) => p.img !== prods[i].img && p.img && p.img.startsWith('https://'));
-    if (hasNewUrls && _origSaveProds) {
-      // Update localStorage: replace base64 with URLs to free space
-      _origSaveProds(prodsWithUrls);
-      _updateStorageBar();
-    }
-    // Save to Firestore (with image URLs, not base64)
-    await Promise.all(prodsWithUrls.map(p => setDoc(doc(db, 'products', p.id), fsClean(p))));
+    // fsClean now allows compressed images (<400KB) → stored directly in Firestore
+    await Promise.all(prods.map(p => setDoc(doc(db, 'products', p.id), fsClean(p))));
     const snap = await getDocs(collection(db, 'products'));
-    const ids  = new Set(prodsWithUrls.map(p => p.id));
+    const ids  = new Set(prods.map(p => p.id));
     await Promise.all(snap.docs.filter(d => !ids.has(d.id)).map(d => deleteDoc(d.ref)));
-    console.info('[Admin] Produits synchés (Storage + Firestore):', prodsWithUrls.length);
-  } catch(e) { console.error('[Admin] saveProds erreur:', e.message); }
-};
-
-/* Expose Storage delete for confirmDel */
-window._fbDeleteProductImg = async function(productId) {
-  try { await deleteObject(storageRef(storage, `products/${productId}/main`)); } catch {}
-  try { await deleteObject(storageRef(storage, `products/${productId}/carPhoto`)); } catch {}
+    console.info('[Admin] Produits Firestore synchés:', prods.length);
+  } catch(e) { console.error('[Admin] saveProds Firestore erreur:', e.message); }
 };
 
 /* ── Patch saveVehicles → Firestore ── */
