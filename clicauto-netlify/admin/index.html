@@ -2857,7 +2857,11 @@ function _prodThumb(p) {
 const KEY_PRODS  = 'clicauto_custom_products';
 const KEY_ORDERS = 'clicauto_orders';
 
-function getProds()  { try{return JSON.parse(localStorage.getItem(KEY_PRODS)||'[]');}catch{return[];} }
+function getProds()  {
+  // Même logique que le site client : Firestore en priorité, localStorage en fallback
+  if (window._fsProds && window._fsProds.length) return window._fsProds;
+  try { return JSON.parse(localStorage.getItem(KEY_PRODS)||'[]'); } catch { return []; }
+}
 function getOrders() { try{return JSON.parse(localStorage.getItem(KEY_ORDERS)||'[]');}catch{return[];} }
 function saveProds(a)  { try{localStorage.setItem(KEY_PRODS, JSON.stringify(a));return true;}catch{toast('⚠️ Stockage plein');return false;} }
 function saveOrders(a) { try{localStorage.setItem(KEY_ORDERS,JSON.stringify(a));}catch{toast('⚠️ Stockage plein');} }
@@ -7178,8 +7182,10 @@ async function syncFromFirebase() {
       if (col === 'products' || col === 'vehicles') {
         const local = (() => { try { return JSON.parse(localStorage.getItem(lsKey) || '[]'); } catch { return []; } })();
         const fbIds = new Set(fbData.map(d => d.id));
-        const localOnly = local.filter(d => d.id && !fbIds.has(d.id));
-        localStorage.setItem(lsKey, JSON.stringify([...localOnly, ...fbData]));
+        const merged = [...local.filter(d => d.id && !fbIds.has(d.id)), ...fbData];
+        localStorage.setItem(lsKey, JSON.stringify(merged));
+        // Exposer les produits directement sur window pour getProds() — même logique site client
+        if (col === 'products') window._fsProds = merged;
       } else {
         localStorage.setItem(lsKey, JSON.stringify(fbData));
       }
@@ -7201,8 +7207,10 @@ function startRealtimeSync() {
     const localData = (() => { try { return JSON.parse(localStorage.getItem('clicauto_custom_products') || '[]'); } catch { return []; } })();
     const fbIds = new Set(fbData.map(p => p.id));
     const localOnly = localData.filter(p => !fbIds.has(p.id));
-    localStorage.setItem('clicauto_custom_products', JSON.stringify([...localOnly, ...fbData]));
-    // renderAll gère aussi le détail véhicule ouvert (réaffiche les articles avec photos fraîches)
+    const merged = [...localOnly, ...fbData];
+    localStorage.setItem('clicauto_custom_products', JSON.stringify(merged));
+    // Exposer directement sur window (même logique que le site client)
+    window._fsProds = merged;
     if (typeof renderAll === 'function') renderAll();
   });
   onSnapshot(collection(db, 'vehicles'), snap => {
