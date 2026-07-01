@@ -1805,7 +1805,7 @@ function _makeCard(p, extraBadge) {
   const _partSvg = PART_SVG[_partKey] || PART_SVG.fb;
   card.innerHTML = `
     <div class="pcard-img">
-      <img src="${p.img || ''}" alt="${p.name}" loading="lazy"
+      <img src="${p.img || (p.imgs && p.imgs[0]) || ''}" alt="${p.name}" loading="lazy"
            ${_shouldFlipPhoto(p) ? 'style="transform:scaleX(-1)"' : ''}
            onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
       <div class="pcard-img-fallback" style="display:none">${_partSvg}</div>

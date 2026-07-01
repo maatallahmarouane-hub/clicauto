@@ -2841,9 +2841,10 @@ function _shouldFlipPhoto(p) {
 function _prodThumb(p) {
   const svgKey = PART[p._cat] || 'tl';
   const svgFallback = CAT_SVG[svgKey] || CAT_SVG.tl;
-  if (p.img) {
+  const src = p.img || (p.imgs && p.imgs.find(u => u && u.startsWith('http'))) || '';
+  if (src) {
     const flip = _shouldFlipPhoto(p) ? ';transform:scaleX(-1)' : '';
-    return `<img src="${p.img}" alt="" style="width:100%;height:100%;object-fit:cover${flip}"
+    return `<img src="${src}" alt="" style="width:100%;height:100%;object-fit:cover${flip}"
       onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
       <div style="display:none;width:100%;height:100%">${svgFallback}</div>`;
   }
@@ -7045,15 +7046,21 @@ async function _cdnUpload(dataUrl, publicId) {
 async function _cdnUploadProds(prods) {
   return Promise.all(prods.map(async p => {
     const out = { ...p };
-    // Image principale
+    // Image principale : cherche base64 dans imgData, img, ou imgs[0]
     const b64 = (out.imgData && out.imgData.startsWith('data:')) ? out.imgData
-              : (out.img    && out.img.startsWith('data:'))    ? out.img : null;
+              : (out.img    && out.img.startsWith('data:'))    ? out.img
+              : (out.imgs   && out.imgs[0] && out.imgs[0].startsWith('data:')) ? out.imgs[0] : null;
     if (b64) {
       try {
         const url = await _cdnUpload(b64, 'prod_' + p.id);
         out.img = url; out.imgData = null; out.imgs = [url];
         if (typeof toast === 'function') toast('☁️ Image sauvegardée sur Cloudinary');
       } catch(e) { console.warn('[CDN] Échec upload image:', p.id, e.message); }
+    }
+    // Synchroniser img depuis imgs si img est vide (cohérence carte/popup)
+    if (!out.img || out.img.startsWith('data:')) {
+      const cdnImg = (out.imgs || []).find(u => u && u.startsWith('https://'));
+      if (cdnImg) { out.img = cdnImg; out.imgData = null; }
     }
     // Photo véhicule liée au produit
     if (out.carPhoto && out.carPhoto.startsWith('data:')) {
@@ -7134,8 +7141,10 @@ onAuthStateChanged(auth, user => {
 function fsClean(item) {
   const out = {};
   for (const [k, v] of Object.entries(item)) {
-    if (typeof v === 'string' && v.startsWith('data:')) continue; // images → Cloudinary CDN
+    if (typeof v === 'string' && v.startsWith('data:')) continue;
     if (v === null || v === undefined) continue;
+    // Strip base64 from arrays too (imgs, etc.)
+    if (Array.isArray(v)) { out[k] = v.filter(u => typeof u !== 'string' || !u.startsWith('data:')); continue; }
     out[k] = v;
   }
   return out;
