@@ -1805,7 +1805,7 @@ function _makeCard(p, extraBadge) {
   const _partSvg = PART_SVG[_partKey] || PART_SVG.fb;
   card.innerHTML = `
     <div class="pcard-img">
-      <img src="${p.img || (p.imgs && p.imgs[0]) || ''}" alt="${p.name}" loading="lazy"
+      <img src="${p.img || (p.imgs && p.imgs[0]) || (p.imgData && !p.imgData.startsWith('data:') ? p.imgData : '') || ''}" alt="${p.name}" loading="lazy"
            ${_shouldFlipPhoto(p) ? 'style="transform:scaleX(-1)"' : ''}
            onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
       <div class="pcard-img-fallback" style="display:none">${_partSvg}</div>
@@ -1847,7 +1847,9 @@ let _pdTouchX   = 0;
 
 function openProductDetail(product, cardEl) {
   _pdProduct  = product;
-  _pdPhotos   = (product.imgs && product.imgs.length) ? product.imgs : (product.img ? [product.img] : []);
+  // Utilise img en priorité, puis imgs[] en fallback
+  const _imgUrl = product.img || (product.imgs && product.imgs[0]) || '';
+  _pdPhotos = _imgUrl ? [_imgUrl] : [];
   _pdPhotoIdx = 0;
 
   if (cardEl) {

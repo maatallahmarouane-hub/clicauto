@@ -7132,6 +7132,24 @@ async function migrateLocalToFirestore() {
   return total;
 }
 
+/* ── Migration : corrige img vide depuis imgs[0] pour produits existants ── */
+async function _fixProductPhotos() {
+  const snap = await getDocs(collection(db, 'products'));
+  const fixes = [];
+  for (const d of snap.docs) {
+    const p = d.data();
+    // img manquant ou vide mais imgs[0] est une URL CDN valide
+    const candidate = (p.imgs && p.imgs[0] && p.imgs[0].startsWith('https://')) ? p.imgs[0] : null;
+    if ((!p.img || p.img.startsWith('data:')) && candidate) {
+      fixes.push(setDoc(d.ref, { img: candidate }, { merge: true }));
+    }
+  }
+  if (fixes.length) {
+    await Promise.all(fixes);
+    if (typeof toast === 'function') toast('🔄 ' + fixes.length + ' photo(s) récupérée(s) depuis CDN');
+  }
+}
+
 /* ── Sync : Firestore → localStorage (au login) ── */
 async function syncFromFirebase() {
   const keys = {
@@ -7170,6 +7188,8 @@ async function syncFromFirebase() {
   if (typeof renderAll === 'function') renderAll();
   if (typeof renderFournisseurs === 'function') renderFournisseurs();
   startRealtimeSync();
+  // Corriger les photos manquantes en arrière-plan
+  _fixProductPhotos().catch(e => console.warn('[Admin] fixPhotos:', e.message));
 }
 
 /* ── Sync temps réel (pendant que l'admin est ouvert) ── */
@@ -7219,22 +7239,25 @@ window.saveProds = async function(prods) {
   if (_origSaveProds) _origSaveProds(prods);
   if (!auth.currentUser) { if (typeof toast === 'function') toast('⚠️ Connectez-vous pour sauvegarder'); return; }
   try {
-    // 2. Si une photo est encore en base64 (upload CDN pas encore terminé), on réessaie
+    // 2. Normaliser les photos : CDN URL dans img ET imgs, pas de base64 en Firestore
     const ready = await Promise.all(prods.map(async p => {
       const o = { ...p };
-      const b64 = (o.imgData?.startsWith('data:')) ? o.imgData
-                : (o.img?.startsWith('data:'))     ? o.img
-                : (o.imgs?.[0]?.startsWith('data:')) ? o.imgs[0] : null;
+      // Chercher base64 dans tous les champs possibles
+      const b64 = o.imgData?.startsWith('data:') ? o.imgData
+                : o.img?.startsWith('data:')     ? o.img
+                : o.imgs?.[0]?.startsWith('data:') ? o.imgs[0] : null;
       if (b64) {
         try {
           const url = await _cdnUpload(b64, 'prod_' + p.id);
-          o.img = url; o.imgData = null; o.imgs = [url];
-        } catch(e) { /* conserve base64 si CDN indisponible */ }
+          o.img = url;
+        } catch(e) { /* CDN indisponible — conserve base64 */ }
       }
-      // img doit être cohérent avec imgs
-      if ((!o.img || o.img.startsWith('data:')) && o.imgs?.some(u => u?.startsWith('https://'))) {
+      // Synchroniser: img depuis imgs[], ou imgs[] depuis img
+      if ((!o.img || o.img.startsWith('data:')) && o.imgs?.some(u => u?.startsWith('https://')))
         o.img = o.imgs.find(u => u?.startsWith('https://'));
-      }
+      if (o.img && o.img.startsWith('https://'))
+        o.imgs = [o.img]; // toujours synchronisé
+      o.imgData = null; // jamais en Firestore
       return fsClean(o);
     }));
     // 3. Mettre à jour localStorage avec les URLs finales
