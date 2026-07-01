@@ -5044,7 +5044,6 @@ async function saveProduct() {
   const stock = parseInt(document.getElementById('f-stock').value)||0;
   const ref   = document.getElementById('f-ref').value.trim();
 
-  // Lire les drums seulement si la section années est visible
   const _yrStep = document.getElementById('ws-years');
   if (!_yrStep || _yrStep.style.display !== 'none') {
     _form.yearF = drumYF.getValue();
@@ -5055,26 +5054,38 @@ async function saveProduct() {
   if(!name)     { toast('⚠️ Entrez un nom'); return; }
   if(!price)    { toast('⚠️ Entrez un prix'); return; }
 
-  const years=_yearStr();
-  const imgs=_form.imgData?[_form.imgData]:[];
-  let prods=getProds();
+  const years = _yearStr();
+  const imgData = _form.imgData || null;
+  let prods = getProds();
+  const toSave = []; // produits à écrire sur Firestore
 
-  if(_form.editId) {
+  if (_form.editId) {
     // UPDATE
-    const idx=prods.findIndex(p=>p.id===_form.editId);
-    if(idx>=0) prods[idx]={...prods[idx],name,price,stock,ref:ref||prods[idx].ref,
-      brand:_form.brand,model:_form.model,years,side:_form.pos||null,
-      part:PART[_form.cat]||'acc',img:imgs[0]||prods[idx].img,
-      imgs:imgs.length?imgs:prods[idx].imgs,_cat:_form.cat,
-      carPhoto:_form.carPhoto||prods[idx].carPhoto||null,
-      genId:_form.genId||prods[idx].genId||null};
+    const idx = prods.findIndex(p => p.id === _form.editId);
+    if (idx >= 0) {
+      const updated = {...prods[idx], name, price, stock,
+        ref: ref || prods[idx].ref,
+        brand: _form.brand, model: _form.model, years,
+        side: _form.pos || null,
+        part: PART[_form.cat] || 'acc',
+        img: imgData || prods[idx].img,
+        imgs: imgData ? [imgData] : (prods[idx].imgs || []),
+        _cat: _form.cat,
+        carPhoto: _form.carPhoto || prods[idx].carPhoto || null,
+        genId: _form.genId || prods[idx].genId || null};
+      prods[idx] = updated;
+      toSave.push(updated);
+    }
   } else {
     // CREATE
-    const id='custom-'+Date.now()+'-'+Math.random().toString(36).slice(2,6);
-    prods.unshift({id,ref:ref||id,name,brand:_form.brand,model:_form.model,years,
-      side:_form.pos||null,price,stock,part:PART[_form.cat]||'acc',
-      img:imgs[0]||null,imgs,_cat:_form.cat,_custom:true,_added:Date.now(),
-      carPhoto:_form.carPhoto||null,genId:_form.genId||null});
+    const id = 'custom-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6);
+    const newP = {id, ref: ref||id, name, brand: _form.brand, model: _form.model, years,
+      side: _form.pos || null, price, stock, part: PART[_form.cat] || 'acc',
+      img: imgData || null, imgs: imgData ? [imgData] : [],
+      _cat: _form.cat, _custom: true, _added: Date.now(),
+      carPhoto: _form.carPhoto || null, genId: _form.genId || null};
+    prods.unshift(newP);
+    toSave.push(newP);
 
     // ── PAIRE MIROIR ──────────────────────────────────────
     if (_pairMode) {
@@ -5082,37 +5093,45 @@ async function saveProduct() {
       if (opp) {
         const pairName = _pairName(name, _form.pos);
         const pairRef  = document.getElementById('pair-ref').value.trim();
-        const pairId   = id;
-        const id2      = 'custom-'+(Date.now()+1)+'-'+Math.random().toString(36).slice(2,6);
-        // Photo : miroir (G/D) → même photo ; indépendant (AV/AR) → pairImgData
+        const id2      = 'custom-' + (Date.now()+1) + '-' + Math.random().toString(36).slice(2, 6);
         const pairImgs = _isMirrorPair()
-          ? imgs
-          : (_form.pairImgData ? [_form.pairImgData] : imgs);
-        // Mettre à jour le premier produit avec le pairId
+          ? (imgData ? [imgData] : [])
+          : (_form.pairImgData ? [_form.pairImgData] : (imgData ? [imgData] : []));
         const firstIdx = prods.findIndex(p => p.id === id);
-        if (firstIdx >= 0) prods[firstIdx].pairId = pairId;
-        prods.unshift({id:id2, ref:pairRef||id2, name:pairName,
-          brand:_form.brand, model:_form.model, years,
-          side:opp, price, stock,
-          part:PART[_form.cat]||'acc',
-          img:pairImgs[0]||null, imgs:pairImgs,
-          _cat:_form.cat, _custom:true, _added:Date.now()+1,
-          carPhoto:_form.carPhoto||null, genId:_form.genId||null,
-          pairId, _mirrorPhoto: _isMirrorPair()});
-      } else { /* pas de paire opposée */ }
+        if (firstIdx >= 0) prods[firstIdx].pairId = id;
+        const pairP = {id: id2, ref: pairRef||id2, name: pairName,
+          brand: _form.brand, model: _form.model, years,
+          side: opp, price, stock, part: PART[_form.cat] || 'acc',
+          img: pairImgs[0] || null, imgs: pairImgs,
+          _cat: _form.cat, _custom: true, _added: Date.now()+1,
+          carPhoto: _form.carPhoto || null, genId: _form.genId || null,
+          pairId: id, _mirrorPhoto: _isMirrorPair()};
+        prods.unshift(pairP);
+        toSave.push(pairP);
+      }
     }
   }
 
-  // Attendre la fin du save Firestore avant de fermer (évite la perte de photo sur refresh rapide)
   const _saveBtn = document.getElementById('btn-save-main');
   if (_saveBtn) { _saveBtn.disabled = true; _saveBtn.textContent = '⏳ Sauvegarde…'; }
   try {
-  await saveProds(prods);
+    if (window._saveProd) {
+      // Sauvegarde directe : CDN upload + Firestore pour chaque produit modifié uniquement
+      for (const p of toSave) {
+        await window._saveProd(p);
+      }
+    } else {
+      // Fallback si module pas encore chargé
+      await saveProds(prods);
+    }
+    closeForm();
+    renderAll();
+    toast('✅ Produit sauvegardé');
+  } catch(e) {
+    toast('❌ ' + (e.message || 'Erreur').slice(0, 60));
   } finally {
     if (_saveBtn) { _saveBtn.disabled = false; _saveBtn.textContent = 'Sauvegarder'; }
   }
-  closeForm();
-  renderAll();
 }
 
 /* ═══════════════════════════════════════════════════════
@@ -7330,6 +7349,37 @@ window.saveVehicles = async function(vehs) {
 window._deleteVehicleById = async function(id) {
   if (!auth.currentUser || !id) return;
   try { await deleteDoc(doc(db, 'vehicles', id)); } catch(e) { console.error('[Admin] deleteVehicle:', e); }
+};
+
+/* ── Sauvegarder UN seul produit (CDN upload + Firestore setDoc) ── */
+window._saveProd = async function(prod) {
+  if (!auth.currentUser) throw new Error('Non connecté');
+  const o = { ...prod };
+  // CDN upload si base64
+  const b64 = o.imgData?.startsWith('data:') ? o.imgData
+            : o.img?.startsWith('data:')     ? o.img
+            : o.imgs?.[0]?.startsWith('data:') ? o.imgs[0] : null;
+  if (b64) {
+    try {
+      const url = await _cdnUpload(b64, 'prod_' + o.id);
+      o.img  = url;
+      o.imgs = [url];
+    } catch(e) { /* CDN indisponible — conserve base64 */ }
+  }
+  // Synchroniser img ↔ imgs
+  if (o.img?.startsWith('https://'))  o.imgs = [o.img];
+  if ((!o.img || o.img.startsWith('data:')) && o.imgs?.some(u => u?.startsWith('https://')))
+    o.img = o.imgs.find(u => u?.startsWith('https://'));
+  o.imgData = null;
+  const clean = fsClean(o);
+  // Mettre à jour window._fsProds ET localStorage immédiatement
+  const cur = Array.isArray(window._fsProds) ? window._fsProds : [];
+  const idx = cur.findIndex(p => p.id === clean.id);
+  window._fsProds = idx >= 0 ? cur.map((p, i) => i === idx ? clean : p) : [clean, ...cur];
+  try { localStorage.setItem('clicauto_custom_products', JSON.stringify(window._fsProds)); } catch(e) {}
+  // Firestore : seulement CE produit
+  await setDoc(doc(db, 'products', clean.id), clean);
+  return clean;
 };
 
 /* ── Patch saveOrders → Firestore ── */
