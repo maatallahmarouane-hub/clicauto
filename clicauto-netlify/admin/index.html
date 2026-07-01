@@ -4140,6 +4140,12 @@ function renderVehicles() {
 
 function openVehicle(el) {
   const v = JSON.parse(el.dataset.veh);
+  // Lire les produits frais depuis localStorage — pas le JSON figé dans le DOM
+  const freshProds = getProds().filter(p =>
+    (p.brand||'').toLowerCase() === (v.brand||'').toLowerCase() &&
+    (p.model||'').toLowerCase() === (v.model||'').toLowerCase()
+  );
+  v.prods = freshProds;
   _currentVehicle = v;
   document.getElementById('veh-grid-wrap').style.display   = 'none';
   document.getElementById('veh-detail-wrap').style.display = '';
@@ -4154,16 +4160,12 @@ function openVehicle(el) {
   }
   document.getElementById('vd-hero-brand').textContent = v.brand;
   document.getElementById('vd-hero-model').textContent = v.model;
-  const allYears = [...new Set(v.prods.map(p=>p.years).filter(Boolean))];
+  const allYears = [...new Set(freshProds.map(p=>p.years).filter(Boolean))];
   document.getElementById('vd-hero-years').textContent = allYears.length ? allYears[0] : '';
 
-  // FAB → ajouter article (sans catégorie pré-choisie, l'utilisateur choisit)
   document.getElementById('fab').onclick = addArticleForVehicle;
-
-  // Scroll to top
   document.getElementById('tab-vehicles').scrollTop = 0;
-
-  _renderVehicleArticles(v.prods);
+  _renderVehicleArticles(freshProds);
 }
 
 function closeVehicle() {
@@ -7195,15 +7197,13 @@ async function syncFromFirebase() {
 /* ── Sync temps réel (pendant que l'admin est ouvert) ── */
 function startRealtimeSync() {
   onSnapshot(collection(db, 'products'), snap => {
-    // Firebase = source de vérité (contient CDN URL ou base64 conservé)
     const fbData = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     const localData = (() => { try { return JSON.parse(localStorage.getItem('clicauto_custom_products') || '[]'); } catch { return []; } })();
-    // Garder les produits locaux pas encore confirmés dans Firebase
     const fbIds = new Set(fbData.map(p => p.id));
     const localOnly = localData.filter(p => !fbIds.has(p.id));
     localStorage.setItem('clicauto_custom_products', JSON.stringify([...localOnly, ...fbData]));
-    if (typeof renderStock === 'function') renderStock();
-    if (typeof renderProducts === 'function') renderProducts();
+    // renderAll gère aussi le détail véhicule ouvert (réaffiche les articles avec photos fraîches)
+    if (typeof renderAll === 'function') renderAll();
   });
   onSnapshot(collection(db, 'vehicles'), snap => {
     // Firebase = source de vérité
