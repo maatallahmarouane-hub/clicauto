@@ -3791,8 +3791,8 @@ function onVehPhotoChosen(e) {
   rd.onload = ev => {
     const img = new Image();
     img.onload = () => {
-      // 1. Dessiner à haute résolution pour précision
-      const WORK = 2000; let w = img.width, h = img.height;
+      // Limite mémoire mobile : 1200px = même qualité que l'output (1200×840)
+      const WORK = 1200; let w = img.width, h = img.height;
       if (w > WORK) { h = Math.round(h*WORK/w); w = WORK; }
       if (h > WORK) { w = Math.round(w*WORK/h); h = WORK; }
       const cv = document.createElement('canvas');
@@ -4925,8 +4925,8 @@ function processFile(file) {
   rd.onload = e => {
     const img = new Image();
     img.onload = () => {
-      // 1. Dessiner à haute résolution pour une détection précise
-      const WORK = 2000;
+      // Limite mémoire mobile : 1200px = même qualité que l'output (1200×1200)
+      const WORK = 1200;
       let w = img.width, h = img.height;
       if (w > WORK) { h = Math.round(h*WORK/w); w = WORK; }
       if (h > WORK) { w = Math.round(w*WORK/h); h = WORK; }
