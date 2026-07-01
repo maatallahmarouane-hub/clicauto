@@ -5132,7 +5132,7 @@ function renderProducts() {
 
   // Badge
   const bdg=document.getElementById('badge-products');
-  bdg.textContent=prods.length; bdg.classList.toggle('show',prods.length>0);
+  if(bdg){ bdg.textContent=prods.length; bdg.classList.toggle('show',prods.length>0); }
 }
 
 function editProd(id){
@@ -5509,7 +5509,7 @@ function renderOrders() {
   });
 
   const bdg = document.getElementById('badge-orders');
-  bdg.textContent = pend; bdg.classList.toggle('show', pend > 0);
+  if(bdg){ bdg.textContent = pend; bdg.classList.toggle('show', pend > 0); }
 
   const list = document.getElementById('ord-list');
   if (!filtered.length) {
