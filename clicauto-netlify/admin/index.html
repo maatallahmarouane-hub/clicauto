@@ -3974,12 +3974,16 @@ function _vehCardHtml(v) {
 function deleteVehicle(v) {
   const key = ((v.brand||'')+'|'+(v.model||'')).toLowerCase();
   if (!confirm(`Supprimer ${v.brand} ${v.model} ?`)) return;
-  // Supprime le véhicule
+  // Supprime le véhicule (Firestore explicite)
+  if (v.id && window._deleteVehicleById) window._deleteVehicleById(v.id);
   const vehs = getVehicles().filter(x => ((x.brand||'')+'|'+(x.model||'')).toLowerCase() !== key);
   saveVehicles(vehs);
-  // Supprime les produits associés
-  const prods = getProds().filter(p => ((p.brand||'')+'|'+(p.model||'')).toLowerCase() !== key);
-  saveProds(prods);
+  // Supprime les produits associés (Firestore explicite pour chaque produit)
+  const allProds = getProds();
+  allProds.filter(p => ((p.brand||'')+'|'+(p.model||'')).toLowerCase() === key)
+    .forEach(p => p.id && window._deleteProductById && window._deleteProductById(p.id));
+  const remainingProds = allProds.filter(p => ((p.brand||'')+'|'+(p.model||'')).toLowerCase() !== key);
+  saveProds(remainingProds);
   renderVehicles();
   toast(`🗑 ${v.brand} ${v.model} supprimé`);
 }
@@ -5856,7 +5860,14 @@ function confirmDel(id,name,type) {
   document.getElementById('confirm-title').textContent='Supprimer ?';
   document.getElementById('confirm-sub').textContent=`"${name}" sera définitivement supprimé.`;
   _confirmCb=()=>{
-    if(type==='prod'){ saveProds(getProds().filter(p=>p.id!==id)); renderAll(); toast('🗑 Produit supprimé'); }
+    if(type==='prod'){
+      window._deleteProductById && window._deleteProductById(id);
+      const newProds = getProds().filter(p=>p.id!==id);
+      if (window._fsProds) window._fsProds = window._fsProds.filter(p=>p.id!==id);
+      saveProds(newProds);
+      renderAll();
+      toast('🗑 Produit supprimé');
+    }
   };
   document.getElementById('confirm-yes').onclick=()=>{ _confirmCb?.(); closeConfirm(); };
   document.getElementById('confirm-overlay').classList.add('open');
@@ -7259,7 +7270,6 @@ window.saveProds = async function(prods) {
     // 2. Normaliser les photos : CDN URL dans img ET imgs, pas de base64 en Firestore
     const ready = await Promise.all(prods.map(async p => {
       const o = { ...p };
-      // Chercher base64 dans tous les champs possibles
       const b64 = o.imgData?.startsWith('data:') ? o.imgData
                 : o.img?.startsWith('data:')     ? o.img
                 : o.imgs?.[0]?.startsWith('data:') ? o.imgs[0] : null;
@@ -7269,37 +7279,38 @@ window.saveProds = async function(prods) {
           o.img = url;
         } catch(e) { /* CDN indisponible — conserve base64 */ }
       }
-      // Synchroniser: img depuis imgs[], ou imgs[] depuis img
       if ((!o.img || o.img.startsWith('data:')) && o.imgs?.some(u => u?.startsWith('https://')))
         o.img = o.imgs.find(u => u?.startsWith('https://'));
       if (o.img && o.img.startsWith('https://'))
-        o.imgs = [o.img]; // toujours synchronisé
-      o.imgData = null; // jamais en Firestore
+        o.imgs = [o.img];
+      o.imgData = null;
       return fsClean(o);
     }));
     // 3. Mettre à jour localStorage avec les URLs finales
     if (_origSaveProds) _origSaveProds(ready);
-    // 4. Firestore
+    // 4. Mettre à jour window._fsProds immédiatement (sans attendre onSnapshot)
+    window._fsProds = ready;
+    // 5. Firestore : upsert seulement — PAS de suppression (la suppression est explicite via _deleteProductById)
     await Promise.all(ready.map(p => setDoc(doc(db, 'products', p.id), p)));
-    const snap = await getDocs(collection(db, 'products'));
-    const ids  = new Set(ready.map(p => p.id));
-    await Promise.all(snap.docs.filter(d => !ids.has(d.id)).map(d => deleteDoc(d.ref)));
     if (typeof toast === 'function') toast('✅ Produits sauvegardés');
   } catch(e) { if (typeof toast === 'function') toast('❌ Erreur: ' + e.message.slice(0,50)); console.error('[Admin] saveProds:', e); }
+};
+
+/* ── Suppression explicite d'un produit Firestore ── */
+window._deleteProductById = async function(id) {
+  if (!auth.currentUser || !id) return;
+  try { await deleteDoc(doc(db, 'products', id)); } catch(e) { console.error('[Admin] deleteProduct:', e); }
 };
 
 /* ── Patch saveVehicles → Cloudinary + Firestore ── */
 const _origSaveVehs = window.saveVehicles;
 window.saveVehicles = async function(vehs) {
-  // S'assurer que chaque véhicule a un id
   const list = vehs.map(v => v.id ? v : {
     ...v, id: ((v.brand||'')+'_'+(v.model||'')).toLowerCase().replace(/[^a-z0-9]/g,'_') || Date.now().toString(36)
   });
-  // 1. Sauvegarde locale immédiate
   if (_origSaveVehs) { try { _origSaveVehs(list); } catch(e) {} }
   if (!auth.currentUser) { if (typeof toast === 'function') toast('⚠️ Connectez-vous pour sauvegarder'); return; }
   try {
-    // 2. Si photo encore en base64 (upload CDN pas encore terminé), on réessaie
     const ready = await Promise.all(list.map(async v => {
       const o = { ...v };
       if (o.carPhoto?.startsWith('data:')) {
@@ -7308,15 +7319,17 @@ window.saveVehicles = async function(vehs) {
       }
       return fsClean(o);
     }));
-    // 3. Mettre à jour localStorage avec les URLs finales
     if (_origSaveVehs) { try { _origSaveVehs(ready); } catch(e) {} }
-    // 4. Firestore
+    // Firestore : upsert seulement — PAS de suppression (la suppression est explicite via _deleteVehicleById)
     await Promise.all(ready.map(v => setDoc(doc(db, 'vehicles', v.id), v)));
-    const snap = await getDocs(collection(db, 'vehicles'));
-    const ids  = new Set(ready.map(v => v.id));
-    await Promise.all(snap.docs.filter(d => !ids.has(d.id)).map(d => deleteDoc(d.ref)));
     if (typeof toast === 'function') toast('✅ Véhicules sauvegardés');
   } catch(e) { if (typeof toast === 'function') toast('❌ Erreur véhicules: ' + e.message.slice(0,40)); console.error('[Admin] saveVehicles:', e); }
+};
+
+/* ── Suppression explicite d'un véhicule Firestore ── */
+window._deleteVehicleById = async function(id) {
+  if (!auth.currentUser || !id) return;
+  try { await deleteDoc(doc(db, 'vehicles', id)); } catch(e) { console.error('[Admin] deleteVehicle:', e); }
 };
 
 /* ── Patch saveOrders → Firestore ── */
