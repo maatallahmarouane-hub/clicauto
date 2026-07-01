@@ -7088,10 +7088,34 @@ window.doLogout = async function() {
 
 /* ── Gestion état auth ── */
 window._auth = auth; // exposé pour les fonctions sync
+/* ── Nettoyage localStorage : supprime tous les base64 au démarrage ── */
+function _purgeBase64FromStorage() {
+  try {
+    const vehs = JSON.parse(localStorage.getItem('clicauto_vehicles') || '[]');
+    const cleaned = vehs.map(v => ({
+      ...v,
+      carPhoto: (v.carPhoto && v.carPhoto.startsWith('data:')) ? '' : (v.carPhoto || '')
+    }));
+    localStorage.setItem('clicauto_vehicles', JSON.stringify(cleaned));
+  } catch(e) { /* ignore */ }
+  try {
+    const prods = JSON.parse(localStorage.getItem('clicauto_custom_products') || '[]');
+    const cleaned = prods.map(p => ({
+      ...p,
+      img:     (p.img     && p.img.startsWith('data:'))     ? '' : (p.img     || ''),
+      imgData: (p.imgData && p.imgData.startsWith('data:')) ? '' : (p.imgData || ''),
+      imgs:    (p.imgs || []).map(u => (u && u.startsWith('data:')) ? '' : u).filter(Boolean),
+      carPhoto:(p.carPhoto && p.carPhoto.startsWith('data:')) ? '' : (p.carPhoto || '')
+    }));
+    localStorage.setItem('clicauto_custom_products', JSON.stringify(cleaned));
+  } catch(e) { /* ignore */ }
+}
+
 onAuthStateChanged(auth, user => {
   const overlay = document.getElementById('auth-overlay');
   if (user) {
     overlay.classList.add('hidden');
+    _purgeBase64FromStorage(); // libère le quota avant la sync
     if (typeof toast === 'function') toast('🔥 Firebase connecté — sync en cours…');
     syncFromFirebase();
   } else {
@@ -7303,27 +7327,36 @@ window.saveProds = async function(prods) {
 const _KEY_VEHS = 'clicauto_vehicles';
 const _origSaveVehs = window.saveVehicles;
 window.saveVehicles = async function(vehs) {
-  localStorage.setItem(_KEY_VEHS, JSON.stringify(vehs));
-  if (_origSaveVehs) _origSaveVehs(vehs);
-  if (!auth.currentUser) { return; }
+  // Migrate any vehicle without an id (created before fix) so Firestore write never throws
+  const vehsWithIds = vehs.map(v => v.id ? v : {
+    ...v,
+    id: ((v.brand||'') + '_' + (v.model||'')).toLowerCase().replace(/[^a-z0-9]/g, '_') || Date.now().toString(36)
+  });
+  // Strip base64 from localStorage immediately — CDN URLs will replace them after upload
+  const vehsSlim = vehsWithIds.map(v => ({
+    ...v,
+    carPhoto: (v.carPhoto && v.carPhoto.startsWith('data:')) ? '__uploading__' : (v.carPhoto || '')
+  }));
+  try { localStorage.setItem(_KEY_VEHS, JSON.stringify(vehsSlim)); } catch(e) { /* quota: ignore, Firebase is source of truth */ }
+  if (_origSaveVehs) { try { _origSaveVehs(vehsSlim); } catch(e) { /* quota: ignore */ } }
+  if (!auth.currentUser) { if (typeof toast === 'function') toast('⚠️ Connectez-vous pour sauvegarder'); return; }
   try {
     // Upload photos véhicules vers Cloudinary
-    const vehsWithUrls = await Promise.all(vehs.map(async v => {
+    const vehsWithUrls = await Promise.all(vehsWithIds.map(async v => {
       if (!v.carPhoto || !v.carPhoto.startsWith('data:')) return v;
-      const cdnKey = 'veh_' + (v.id || (v.brand||'') + '_' + (v.model||'')).replace(/[^a-z0-9]/gi, '_');
+      const cdnKey = 'veh_' + v.id.replace(/[^a-z0-9]/gi, '_');
       try {
         const url = await _cdnUpload(v.carPhoto, cdnKey);
         if (typeof toast === 'function') toast('☁️ Photo véhicule sauvegardée sur CDN');
         return { ...v, carPhoto: url };
       }
-      catch(e) { console.warn('[CDN] Véhicule photo:', v.id, e.message); return v; }
+      catch(e) { console.warn('[CDN] Véhicule photo:', v.id, e.message); return { ...v, carPhoto: '' }; }
     }));
-    // Update localStorage with CDN URLs so base64 doesn't fill up the 5MB quota
-    const hasNewUrls = vehsWithUrls.some((v, i) => v.carPhoto !== vehs[i].carPhoto && (v.carPhoto||'').startsWith('https://'));
-    if (hasNewUrls) {
+    // Replace __uploading__ placeholders with final CDN URLs in localStorage
+    try {
       localStorage.setItem(_KEY_VEHS, JSON.stringify(vehsWithUrls));
       if (typeof _updateStorageBar === 'function') _updateStorageBar();
-    }
+    } catch(e) { /* quota: Firebase has the data anyway */ }
     await Promise.all(vehsWithUrls.map(v => setDoc(doc(db, 'vehicles', v.id), fsClean(v))));
     const snap = await getDocs(collection(db, 'vehicles'));
     const ids  = new Set(vehsWithUrls.map(v => v.id));
