@@ -1803,13 +1803,13 @@ function loadProducts(catIdx) {
 function _makeCard(p, extraBadge) {
   const card = document.createElement('div');
   card.className = 'pcard';
-  const sideTag = p.side ? `<span class="hi-mark">${p.side}</span>` : '';
   const extra   = extraBadge ? `<span class="pcard-badge pcard-badge-cat">${extraBadge}</span>` : '';
   const vehLine = [p.brand, p.model].filter(Boolean).join(' · ');
   const yearPill = p.years ? `<span class="pcard-year-badge">${_yearStr(p.years)}</span>` : '';
   const _CAT_PART = {'feux-arriere':'tl','portes':'dr','pare-chocs':'fb','ailes':'fen','optiques':'hl','retroviseurs':'mir','capots':'hood','coffres':'trunk'};
   const _partKey = p.part || _CAT_PART[p._cat] || 'fb';
   const _partSvg = PART_SVG[_partKey] || PART_SVG.fb;
+  const sideBadge = p.side ? `<div class="pcard-side-badge">${p.side}</div>` : '';
   card.innerHTML = `
     <div class="pcard-img">
       <img src="${p.img || (p.imgs && p.imgs[0]) || (p.imgData && !p.imgData.startsWith('data:') ? p.imgData : '') || ''}" alt="${p.name}" loading="lazy"
@@ -1823,8 +1823,9 @@ function _makeCard(p, extraBadge) {
         </svg>
       </button>
     </div>
+    ${sideBadge}
     <div class="pcard-info">
-      <div class="pcard-name">${_displayName(p)}${sideTag}</div>
+      <div class="pcard-name">${_displayName(p)}</div>
       ${vehLine ? `<div class="pcard-veh">${vehLine}</div>` : ''}
       ${(yearPill || extra) ? `<div class="pcard-meta-row">${yearPill}${extra}</div>` : ''}
       <div class="pcard-bottom">
