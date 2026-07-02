@@ -1793,8 +1793,23 @@ function loadProducts(catIdx) {
         </div>`;
       return;
     }
+    prods = _pairSides(prods);
     prods.forEach(p => grid.appendChild(_makeCard(p)));
   }, 280);
+}
+
+/* Trie les pièces par paires : DROITE en col gauche, GAUCHE en col droite */
+function _pairSides(prods) {
+  const dr = prods.filter(p => /DROITE/i.test(p.side || ''));
+  const ga = prods.filter(p => /GAUCHE/i.test(p.side || ''));
+  if (!dr.length || !ga.length) return prods;
+  const ot = prods.filter(p => !/DROITE|GAUCHE/i.test(p.side || ''));
+  const out = [];
+  for (let i = 0; i < Math.max(dr.length, ga.length); i++) {
+    if (dr[i]) out.push(dr[i]);
+    if (ga[i]) out.push(ga[i]);
+  }
+  return [...out, ...ot];
 }
 
 /* ════════════════════════════════════════
@@ -2646,6 +2661,7 @@ function _renderPcGrid() {
     return;
   }
 
+  prods = _pairSides(prods);
   const showCatBadge = _pcCat === 'all' && !_pcSearch && !_pcVehicle;
   prods.forEach(p => {
     const catName = showCatBadge ? ((CATEGORIES.find(c => c.id === p._cat) || {}).name || null) : null;
