@@ -1793,6 +1793,17 @@ function loadProducts(catIdx) {
         </div>`;
       return;
     }
+    if (catId === 'optiques' || catId === 'retroviseurs') {
+      const dr = prods.filter(p => p.side === 'DROITE');
+      const ga = prods.filter(p => p.side === 'GAUCHE');
+      const ot = prods.filter(p => !p.side);
+      prods = [];
+      for (let i = 0; i < Math.max(dr.length, ga.length); i++) {
+        if (dr[i]) prods.push(dr[i]);
+        if (ga[i]) prods.push(ga[i]);
+      }
+      prods.push(...ot);
+    }
     prods.forEach(p => grid.appendChild(_makeCard(p)));
   }, 280);
 }
@@ -2647,6 +2658,17 @@ function _renderPcGrid() {
     return;
   }
 
+  if (_pcCat === 'optiques' || _pcCat === 'retroviseurs') {
+    const dr = prods.filter(p => p.side === 'DROITE');
+    const ga = prods.filter(p => p.side === 'GAUCHE');
+    const ot = prods.filter(p => !p.side);
+    prods = [];
+    for (let i = 0; i < Math.max(dr.length, ga.length); i++) {
+      if (dr[i]) prods.push(dr[i]);
+      if (ga[i]) prods.push(ga[i]);
+    }
+    prods.push(...ot);
+  }
   const showCatBadge = _pcCat === 'all' && !_pcSearch && !_pcVehicle;
   prods.forEach(p => {
     const catName = showCatBadge ? ((CATEGORIES.find(c => c.id === p._cat) || {}).name || null) : null;
