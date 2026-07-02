@@ -1793,16 +1793,14 @@ function loadProducts(catIdx) {
         </div>`;
       return;
     }
-    prods = _pairSides(prods);
-    prods.forEach(p => grid.appendChild(_makeCard(p)));
+    _appendBlocks(_buildPairBlocks(prods), grid, p => _makeCard(p));
   }, 280);
 }
 
-/* Regroupe les paires exactes (DROITE+GAUCHE) : même nom/marque/modèle côte à côte */
-function _pairSides(prods) {
+/* Groupe les produits en blocs : paire exacte DROITE+GAUCHE ou orphelin */
+function _buildPairBlocks(prods) {
   const sided   = prods.filter(p => /^(DROITE|GAUCHE)$/i.test(p.side || ''));
   const unsided = prods.filter(p => !/^(DROITE|GAUCHE)$/i.test(p.side || ''));
-  if (!sided.length) return prods;
 
   const baseKey = p => (p.name || '')
     .replace(/\b(GAUCHE|DROITE)\b/gi, '').replace(/\s+/g,' ').trim().toLowerCase()
@@ -1812,19 +1810,40 @@ function _pairSides(prods) {
   const droites = sided.filter(p => /DROITE/i.test(p.side));
   const gauches = sided.filter(p => /GAUCHE/i.test(p.side));
   const used    = new Set();
-  const out     = [];
+  const blocks  = [];
 
   for (const dr of droites) {
     const key = baseKey(dr);
     const ga  = gauches.find(g => !used.has(g.id) && baseKey(g) === key);
-    out.push(dr);
-    used.add(dr.id);
-    if (ga) { out.push(ga); used.add(ga.id); }
+    if (ga) {
+      blocks.push({ pair: true, dr, ga });
+      used.add(dr.id); used.add(ga.id);
+    } else {
+      blocks.push({ pair: false, p: dr });
+      used.add(dr.id);
+    }
   }
-  // GAUCHEs sans paire DROITE
-  for (const g of gauches) { if (!used.has(g.id)) out.push(g); }
+  for (const g of gauches) {
+    if (!used.has(g.id)) blocks.push({ pair: false, p: g });
+  }
+  for (const p of unsided) blocks.push({ pair: false, p });
 
-  return [...out, ...unsided];
+  return blocks;
+}
+
+/* Injecte les blocs dans une grille — les paires dans un wrapper inséparable */
+function _appendBlocks(blocks, grid, makeCardFn) {
+  blocks.forEach(b => {
+    if (b.pair) {
+      const wrap = document.createElement('div');
+      wrap.className = 'pcard-pair';
+      wrap.appendChild(makeCardFn(b.dr));
+      wrap.appendChild(makeCardFn(b.ga));
+      grid.appendChild(wrap);
+    } else {
+      grid.appendChild(makeCardFn(b.p));
+    }
+  });
 }
 
 /* ════════════════════════════════════════
@@ -2676,11 +2695,10 @@ function _renderPcGrid() {
     return;
   }
 
-  prods = _pairSides(prods);
   const showCatBadge = _pcCat === 'all' && !_pcSearch && !_pcVehicle;
-  prods.forEach(p => {
+  _appendBlocks(_buildPairBlocks(prods), grid, p => {
     const catName = showCatBadge ? ((CATEGORIES.find(c => c.id === p._cat) || {}).name || null) : null;
-    grid.appendChild(_makeCard(p, catName));
+    return _makeCard(p, catName);
   });
 
   _updatePcFiltersBar();
