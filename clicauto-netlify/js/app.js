@@ -51,10 +51,10 @@ function _vehSub(p) {
   return [p.brand, p.model, p.years].filter(Boolean).join(' · ');
 }
 
-/* Exception optiques : GAUCHE = scaleX(-1), DROITE = naturelle (inverse du reste) */
+/* Optiques & rétroviseurs : DROITE = scaleX(-1), GAUCHE = naturelle */
 function _shouldFlipPhoto(p) {
-  if (p._cat === 'optiques') {
-    return /GAUCHE/i.test(p.side || p.name || '');
+  if (p._cat === 'optiques' || p._cat === 'retroviseurs') {
+    return /DROITE/i.test(p.side || p.name || '');
   }
   return !!p._mirrorPhoto;
 }
