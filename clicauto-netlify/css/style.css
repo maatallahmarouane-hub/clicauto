@@ -644,18 +644,6 @@ html,body{margin:0;padding:0;overflow:hidden;font-family:var(--font);}
 }
 .pcard-img-fallback svg{width:100%;max-height:72px;}
 
-/* Badge GAUCHE / DROITE centré sous l'image */
-.pcard-side-badge{
-  display:block;
-  text-align:center;
-  font-size:12px;font-weight:800;letter-spacing:.5px;
-  color:#1C1C1E;
-  background:rgba(120,210,120,.42);
-  padding:5px 0;
-  width:100%;
-  text-transform:uppercase;
-}
-
 /* Bouton panier sur la card */
 .pcard-cart-btn{
   position:absolute;top:8px;right:8px;
