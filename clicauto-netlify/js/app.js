@@ -1798,18 +1798,33 @@ function loadProducts(catIdx) {
   }, 280);
 }
 
-/* Trie les pièces par paires : DROITE en col gauche, GAUCHE en col droite */
+/* Regroupe les paires exactes (DROITE+GAUCHE) : même nom/marque/modèle côte à côte */
 function _pairSides(prods) {
-  const dr = prods.filter(p => /DROITE/i.test(p.side || ''));
-  const ga = prods.filter(p => /GAUCHE/i.test(p.side || ''));
-  if (!dr.length || !ga.length) return prods;
-  const ot = prods.filter(p => !/DROITE|GAUCHE/i.test(p.side || ''));
-  const out = [];
-  for (let i = 0; i < Math.max(dr.length, ga.length); i++) {
-    if (dr[i]) out.push(dr[i]);
-    if (ga[i]) out.push(ga[i]);
+  const sided   = prods.filter(p => /^(DROITE|GAUCHE)$/i.test(p.side || ''));
+  const unsided = prods.filter(p => !/^(DROITE|GAUCHE)$/i.test(p.side || ''));
+  if (!sided.length) return prods;
+
+  const baseKey = p => (p.name || '')
+    .replace(/\b(GAUCHE|DROITE)\b/gi, '').replace(/\s+/g,' ').trim().toLowerCase()
+    + '|' + (p.brand || '').toLowerCase()
+    + '|' + (p.model || '').toLowerCase();
+
+  const droites = sided.filter(p => /DROITE/i.test(p.side));
+  const gauches = sided.filter(p => /GAUCHE/i.test(p.side));
+  const used    = new Set();
+  const out     = [];
+
+  for (const dr of droites) {
+    const key = baseKey(dr);
+    const ga  = gauches.find(g => !used.has(g.id) && baseKey(g) === key);
+    out.push(dr);
+    used.add(dr.id);
+    if (ga) { out.push(ga); used.add(ga.id); }
   }
-  return [...out, ...ot];
+  // GAUCHEs sans paire DROITE
+  for (const g of gauches) { if (!used.has(g.id)) out.push(g); }
+
+  return [...out, ...unsided];
 }
 
 /* ════════════════════════════════════════
